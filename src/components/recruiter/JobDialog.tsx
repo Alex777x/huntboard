@@ -1,0 +1,278 @@
+"use client";
+
+import * as React from "react";
+import {
+  X,
+  Briefcase,
+  Building2,
+  DollarSign,
+  MapPin,
+  Globe,
+  Save,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { WorkFormat } from "@/types/database";
+
+export interface RecruiterJob {
+  id: string;
+  recruiter_id: string;
+  title: string;
+  company_name: string;
+  description: string;
+  requirements: string;
+  work_format: WorkFormat;
+  location: string;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string;
+  status: "active" | "paused" | "closed";
+  view_count: number;
+  published_to_community: boolean;
+  applicants_count: number;
+  created_at: string;
+}
+
+interface JobDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  job?: RecruiterJob | null;
+  onSave: (job: Partial<RecruiterJob>) => void;
+  onDelete?: (id: string) => void;
+}
+
+export function JobDialog({
+  isOpen,
+  onClose,
+  job,
+  onSave,
+  onDelete,
+}: JobDialogProps) {
+  const [formData, setFormData] = React.useState<Partial<RecruiterJob>>({
+    title: "",
+    company_name: "Stripe",
+    description: "",
+    requirements: "",
+    work_format: "remote",
+    location: "Remote (EU / US Timezones)",
+    salary_min: 150000,
+    salary_max: 190000,
+    salary_currency: "USD",
+    status: "active",
+    published_to_community: true,
+  });
+
+  React.useEffect(() => {
+    if (job) {
+      setFormData(job);
+    } else {
+      setFormData({
+        title: "",
+        company_name: "Stripe",
+        description: "",
+        requirements: "• 5+ years of experience with React & Next.js\n• Strong TypeScript & PostgreSQL skills",
+        work_format: "remote",
+        location: "Remote",
+        salary_min: 150000,
+        salary_max: 190000,
+        salary_currency: "USD",
+        status: "active",
+        published_to_community: true,
+      });
+    }
+  }, [job, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title || !formData.company_name) return;
+    onSave(formData);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in-0">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-100 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-purple-400" />
+              {job ? "Edit Vacancy" : "Post New Job Vacancy"}
+            </h2>
+            <p className="text-xs text-slate-400">
+              Create a job opening to source candidates and manage the applicant pipeline
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Job Title *</label>
+              <Input
+                required
+                value={formData.title || ""}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="e.g. Senior Frontend Engineer"
+                className="bg-slate-950 border-slate-800 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Company Name *</label>
+              <Input
+                required
+                value={formData.company_name || ""}
+                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                placeholder="e.g. Stripe"
+                className="bg-slate-950 border-slate-800 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Work Format</label>
+              <select
+                value={formData.work_format || "remote"}
+                onChange={(e) => setFormData({ ...formData, work_format: e.target.value as WorkFormat })}
+                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="onsite">On-site</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Location / HQ</label>
+              <Input
+                value={formData.location || ""}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="e.g. San Francisco or Remote"
+                className="bg-slate-950 border-slate-800 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Status</label>
+              <select
+                value={formData.status || "active"}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "paused" | "closed" })}
+                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 capitalize"
+              >
+                <option value="active">Active (Accepting)</option>
+                <option value="paused">Paused</option>
+                <option value="closed">Closed / Filled</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Salary Min ($ USD/yr)</label>
+              <Input
+                type="number"
+                value={formData.salary_min || ""}
+                onChange={(e) => setFormData({ ...formData, salary_min: e.target.value ? parseInt(e.target.value) : null })}
+                placeholder="e.g. 140000"
+                className="bg-slate-950 border-slate-800 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">Salary Max ($ USD/yr)</label>
+              <Input
+                type="number"
+                value={formData.salary_max || ""}
+                onChange={(e) => setFormData({ ...formData, salary_max: e.target.value ? parseInt(e.target.value) : null })}
+                placeholder="e.g. 180000"
+                className="bg-slate-950 border-slate-800 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-300">Role Description & Mission</label>
+            <textarea
+              rows={3}
+              value={formData.description || ""}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="About the team, key responsibilities..."
+              className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-300">Requirements & Key Skills</label>
+            <textarea
+              rows={3}
+              value={formData.requirements || ""}
+              onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+              placeholder="• Required experience, stack, competencies..."
+              className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="pub"
+              checked={formData.published_to_community}
+              onChange={(e) => setFormData({ ...formData, published_to_community: e.target.checked })}
+              className="rounded border-slate-800 bg-slate-950 text-purple-600 focus:ring-purple-500"
+            />
+            <label htmlFor="pub" className="text-xs text-slate-300 cursor-pointer">
+              Publish to public <strong>Community Job Board</strong> with verified recruiter badge
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+            {job && onDelete ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => onDelete(job.id)}
+                className="text-xs gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete</span>
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-purple-600/25"
+              >
+                <Save className="h-3.5 w-3.5" />
+                <span>{job ? "Save Changes" : "Publish Vacancy"}</span>
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
