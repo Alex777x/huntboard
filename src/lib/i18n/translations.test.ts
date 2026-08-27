@@ -11,15 +11,29 @@ describe("i18n Translations Dictionary Completeness", () => {
       expect(translations[loc].nav.applications).toBeTruthy();
       expect(translations[loc].nav.community).toBeTruthy();
       expect(translations[loc].nav.feedback).toBeTruthy();
+      expect(translations[loc].recruiter.jobsTitle).toBeTruthy();
+      expect(translations[loc].recruiter.atsPipeline).toBeTruthy();
+      expect(translations[loc].recruiter.stages.new).toBeTruthy();
     });
   });
 
-  it("should contain corresponding feedback and community keys across all languages", () => {
-    locales.forEach((loc) => {
-      const t = translations[loc];
-      expect(t.community.title).toBeTruthy();
-      expect(t.feedback.submit).toBeTruthy();
-      expect(t.common.saveToKanban).toBeTruthy();
-    });
+  it("should have 100% key parity across all locales", () => {
+    function getKeys(obj: Record<string, unknown>, prefix = ""): string[] {
+      return Object.keys(obj).flatMap((k) => {
+        const val = obj[k];
+        const fullKey = prefix ? `${prefix}.${k}` : k;
+        if (val && typeof val === "object" && !Array.isArray(val)) {
+          return getKeys(val as Record<string, unknown>, fullKey);
+        }
+        return [fullKey];
+      });
+    }
+
+    const enKeys = getKeys(translations.en).sort();
+    const ruKeys = getKeys(translations.ru).sort();
+    const plKeys = getKeys(translations.pl).sort();
+
+    expect(ruKeys).toEqual(enKeys);
+    expect(plKeys).toEqual(enKeys);
   });
 });

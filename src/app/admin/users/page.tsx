@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 interface UserRecord {
   id: string;
@@ -66,6 +67,7 @@ const demoUsers: UserRecord[] = [
 ];
 
 export default function AdminUsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = React.useState<UserRecord[]>(demoUsers);
   const [search, setSearch] = React.useState("");
 
@@ -88,14 +90,14 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6 max-w-6xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-          User Management
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+          {t.admin.usersTitle}
           <Badge variant="purple" className="text-xs">
-            {users.length} Users
+            {users.length} {t.common.active}
           </Badge>
         </h1>
-        <p className="text-xs text-slate-400">
-          Manage user roles, verify employer accounts, and inspect platform activity
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {t.admin.usersSubtitle}
         </p>
       </div>
 

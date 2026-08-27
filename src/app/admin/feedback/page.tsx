@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FeedbackTicket } from "@/types/feedback";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 const demoTickets: FeedbackTicket[] = [
   {
@@ -47,7 +48,7 @@ const demoTickets: FeedbackTicket[] = [
     id: "fb-3",
     type: "feature",
     title: "Direct LinkedIn Job URL autofill parser",
-    description: "Paste a LinkedIn URL and automatically populate job title, company, and location into the modal.",
+    description: "Paste a LinkedIn Job URL and automatically populate job title, company, and location into the modal.",
     severity: "high",
     status: "in_review",
     userEmail: "elena@example.com",
@@ -57,42 +58,45 @@ const demoTickets: FeedbackTicket[] = [
 ];
 
 export default function AdminFeedbackPage() {
+  const { t } = useI18n();
   const [tickets, setTickets] = React.useState<FeedbackTicket[]>(demoTickets);
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "feature" | "bug" | "general">("all");
 
   const updateStatus = (id: string, newStatus: FeedbackTicket["status"]) => {
     setTickets(
-      tickets.map((t) => (t.id === id ? { ...t, status: newStatus } : t))
+      tickets.map((tk) => (tk.id === id ? { ...tk, status: newStatus } : tk))
     );
   };
 
   const updateNotes = (id: string, notes: string) => {
     setTickets(
-      tickets.map((t) => (t.id === id ? { ...t, adminNotes: notes } : t))
+      tickets.map((tk) => (tk.id === id ? { ...tk, adminNotes: notes } : tk))
     );
   };
 
-  const filtered = tickets.filter((t) => {
+  const filtered = tickets.filter((tk) => {
     const matchesSearch =
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.description.toLowerCase().includes(search.toLowerCase()) ||
-      t.userEmail.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter === "all" ? true : t.type === typeFilter;
+      tk.title.toLowerCase().includes(search.toLowerCase()) ||
+      tk.description.toLowerCase().includes(search.toLowerCase()) ||
+      tk.userEmail.toLowerCase().includes(search.toLowerCase()) ||
+      tk.userName.toLowerCase().includes(search.toLowerCase());
+    const matchesType = typeFilter === "all" ? true : tk.type === typeFilter;
     return matchesSearch && matchesType;
   });
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-          Feedback & Bug Triage
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+          {t.admin.feedbackTitle}
           <Badge variant="purple" className="text-xs">
-            {tickets.length} Tickets
+            {tickets.length} {t.common.active}
           </Badge>
         </h1>
-        <p className="text-xs text-slate-400">
-          Review community feature suggestions, prioritize bug reports, and update roadmap statuses
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {t.admin.feedbackSubtitle}
         </p>
       </div>
 
@@ -105,11 +109,11 @@ export default function AdminFeedbackPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tickets by user, title, or keyword..."
-            className="pl-8 text-xs bg-slate-900/60 border-slate-800"
+            className="pl-8 text-xs bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800"
           />
         </div>
 
-        <div className="flex gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800">
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
           {(["all", "feature", "bug", "general"] as const).map((tp) => (
             <button
               key={tp}
@@ -117,7 +121,7 @@ export default function AdminFeedbackPage() {
               className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-all ${
                 typeFilter === tp
                   ? "bg-purple-600 text-white"
-                  : "text-slate-400 hover:text-white"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               {tp}
@@ -131,7 +135,7 @@ export default function AdminFeedbackPage() {
         {filtered.map((ticket) => (
           <Card
             key={ticket.id}
-            className="border-slate-800 bg-slate-900/60 p-5 space-y-4"
+            className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5 space-y-4 shadow-sm"
           >
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div className="space-y-1">
@@ -139,61 +143,61 @@ export default function AdminFeedbackPage() {
                   {ticket.type === "feature" ? (
                     <Badge variant="purple" className="text-[10px] gap-1">
                       <Lightbulb className="h-3 w-3" />
-                      Feature Request
+                      {t.feedback.typeFeature}
                     </Badge>
                   ) : ticket.type === "bug" ? (
                     <Badge variant="destructive" className="text-[10px] gap-1">
                       <Bug className="h-3 w-3" />
-                      Bug Report ({ticket.severity})
+                      {t.feedback.typeBug} ({ticket.severity})
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="text-[10px]">
-                      General Feedback
+                      {t.feedback.typeGeneral}
                     </Badge>
                   )}
 
-                  <span className="text-xs text-slate-400">
-                    From: <strong className="text-slate-200">{ticket.userName}</strong> ({ticket.userEmail}) • {ticket.createdAt}
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    From: <strong className="text-slate-700 dark:text-slate-200">{ticket.userName}</strong> ({ticket.userEmail}) • {ticket.createdAt}
                   </span>
                 </div>
 
-                <h3 className="text-base font-bold text-white mt-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
                   {ticket.title}
                 </h3>
               </div>
 
               {/* Status Selector */}
               <div className="flex items-center gap-2">
-                <label className="text-xs text-slate-400">Status:</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">Status:</label>
                 <select
                   value={ticket.status}
                   onChange={(e) => updateStatus(ticket.id, e.target.value as FeedbackTicket["status"])}
-                  className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 capitalize"
+                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 capitalize"
                 >
-                  <option value="pending">Pending</option>
+                  <option value="pending">{t.feedback.statusPending}</option>
                   <option value="in_review">In Review</option>
-                  <option value="planned">Planned (Roadmap)</option>
-                  <option value="resolved">Resolved</option>
+                  <option value="planned">{t.feedback.statusPlanned}</option>
+                  <option value="resolved">{t.feedback.statusResolved}</option>
                   <option value="dismissed">Dismissed</option>
                 </select>
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 leading-relaxed font-sans">
+            <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800/60 leading-relaxed font-sans">
               {ticket.description}
             </p>
 
             {/* Team note editor */}
             <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Sparkles className="h-3 w-3 text-purple-400" />
+              <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-purple-500" />
                 Official Team Response Note
               </label>
               <Input
                 value={ticket.adminNotes || ""}
                 onChange={(e) => updateNotes(ticket.id, e.target.value)}
                 placeholder="e.g. Scheduled for next release or under active investigation..."
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs"
               />
             </div>
           </Card>

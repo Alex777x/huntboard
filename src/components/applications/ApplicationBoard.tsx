@@ -25,6 +25,7 @@ import {
   Sparkles,
   Calendar,
   DollarSign,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { Card } from "@/components/ui/card";
 import { KanbanColumn } from "@/components/applications/KanbanColumn";
 import { KanbanCard } from "@/components/applications/KanbanCard";
 import { ApplicationDialog } from "@/components/applications/ApplicationDialog";
+import { JobUrlImportDialog } from "@/components/applications/JobUrlImportDialog";
 import { Application, ApplicationStatus } from "@/types/database";
 import { useI18n } from "@/components/providers/I18nProvider";
 
@@ -224,6 +226,7 @@ export function ApplicationBoard() {
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false);
   const [editingApp, setEditingApp] = React.useState<Application | null>(null);
   const [targetColumnStatus, setTargetColumnStatus] = React.useState<ApplicationStatus>("wishlist");
 
@@ -249,6 +252,19 @@ export function ApplicationBoard() {
         (a.notes && a.notes.toLowerCase().includes(query))
     );
   }, [applications, search]);
+
+  const groupedApplications = React.useMemo(() => {
+    const groups = {} as Record<string, Application[]>;
+    columnIds.forEach((id) => {
+      groups[id] = [];
+    });
+    filteredApplications.forEach((app) => {
+      if (groups[app.status]) {
+        groups[app.status].push(app);
+      }
+    });
+    return groups;
+  }, [filteredApplications]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -321,7 +337,7 @@ export function ApplicationBoard() {
     } else {
       // Create new
       const newApp: Application = {
-        id: `app-${Date.now()}`,
+        id: `app-${crypto.randomUUID()}`,
         profile_id: "user-1",
         company_id: data.company_id || "New Company",
         cv_id: null,
@@ -413,6 +429,16 @@ export function ApplicationBoard() {
 
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => setIsImportDialogOpen(true)}
+            className="h-9 gap-1.5 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold text-xs shadow-xs"
+          >
+            <LinkIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>{t.integrations.importJobUrl}</span>
+          </Button>
+
+          <Button
+            size="sm"
             onClick={() => openAddModal("wishlist")}
             className="h-9 gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/20"
           >
@@ -444,14 +470,14 @@ export function ApplicationBoard() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-6 pt-1">
+          <div className="flex gap-4 overflow-x-auto pb-4 items-start min-h-[calc(100vh-220px)]">
             {columns.map((col) => (
               <KanbanColumn
                 key={col.id}
                 id={col.id}
                 title={col.title}
-                applications={filteredApplications.filter((a) => a.status === col.id)}
-                onAddClick={openAddModal}
+                applications={groupedApplications[col.id] || []}
+                onAddCard={() => openAddModal(col.id)}
                 onEditCard={openEditModal}
               />
             ))}
@@ -459,7 +485,7 @@ export function ApplicationBoard() {
 
           <DragOverlay>
             {activeDragApp ? (
-              <div className="rotate-2 scale-105 shadow-2xl">
+              <div className="rotate-2 scale-105 opacity-90 transition-transform">
                 <KanbanCard application={activeDragApp} />
               </div>
             ) : null}
@@ -467,45 +493,45 @@ export function ApplicationBoard() {
         </DndContext>
       ) : (
         /* Table View */
-        <Card className="border-slate-800 bg-slate-900/60 overflow-hidden">
+        <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="border-b border-slate-800 bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="p-3.5 pl-5">Company & Role</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5">Salary</th>
-                  <th className="p-3.5">Location</th>
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 text-[11px] font-semibold uppercase text-slate-500">
+                  <th className="p-3.5 pl-5">Job Title & Company</th>
+                  <th className="p-3.5">Stage</th>
+                  <th className="p-3.5">Target Salary</th>
+                  <th className="p-3.5">Format</th>
                   <th className="p-3.5">ATS Match</th>
                   <th className="p-3.5">Applied Date</th>
-                  <th className="p-3.5 pr-5 text-right">Edit</th>
+                  <th className="p-3.5 pr-5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
                 {filteredApplications.map((app) => (
                   <tr
                     key={app.id}
                     onClick={() => openEditModal(app)}
-                    className="hover:bg-slate-800/40 transition-colors cursor-pointer"
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                   >
-                    <td className="p-3.5 pl-5">
-                      <div className="font-semibold text-white">{app.job_title}</div>
-                      <div className="text-[11px] text-indigo-400">{app.company_id}</div>
+                    <td className="p-3.5 pl-5 font-medium text-slate-900 dark:text-white">
+                      <div>{app.job_title}</div>
+                      <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-normal">
+                        {app.company_id}
+                      </div>
                     </td>
                     <td className="p-3.5">
                       <Badge variant="purple" className="text-[10px] capitalize">
-                        {app.status.replace("_", " ")}
+                        {(t.applications.stages as Record<string, string>)[app.status] || app.status}
                       </Badge>
                     </td>
-                    <td className="p-3.5 font-medium text-slate-300">
-                      {app.salary_min && app.salary_max
-                        ? `$${(app.salary_min / 1000).toFixed(0)}k - $${(app.salary_max / 1000).toFixed(0)}k`
-                        : "—"}
+                    <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-200">
+                      ${(((app.salary_max || app.salary_min || 140000)) / 1000).toFixed(0)}k / yr
                     </td>
-                    <td className="p-3.5">{app.job_location || app.work_format}</td>
+                    <td className="p-3.5 text-slate-500 capitalize">{app.work_format || "Remote"}</td>
                     <td className="p-3.5">
                       {app.ats_score ? (
-                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                           <Sparkles className="h-3 w-3" />
                           {app.ats_score.score}%
                         </span>
@@ -513,10 +539,10 @@ export function ApplicationBoard() {
                         "—"
                       )}
                     </td>
-                    <td className="p-3.5 text-slate-400">{app.applied_at || "—"}</td>
+                    <td className="p-3.5 text-slate-500 dark:text-slate-400">{app.applied_at || "—"}</td>
                     <td className="p-3.5 pr-5 text-right">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-400 hover:text-white">
-                        Edit
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-white">
+                        {t.common.edit}
                       </Button>
                     </td>
                   </tr>
@@ -535,6 +561,15 @@ export function ApplicationBoard() {
         initialStatus={targetColumnStatus}
         onSave={handleCreateOrUpdate}
         onDelete={handleDelete}
+      />
+
+      {/* In-App Job URL Importer Modal */}
+      <JobUrlImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onJobImported={(newJob) => {
+          setApplications((prev) => [newJob, ...prev]);
+        }}
       />
     </div>
   );

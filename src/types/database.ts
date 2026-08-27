@@ -153,3 +153,24 @@ export interface CommunityPost {
   ai_verified: boolean;
   created_at: string;
 }
+
+export interface RecruiterJob {
+  id: string;
+  recruiter_id: string;
+  title: string;
+  company_name: string;
+  department?: string;
+  work_format: WorkFormat;
+  location: string;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency?: string;
+  description: string;
+  requirements: string;
+  status: "active" | "paused" | "closed";
+  published_to_community: boolean;
+  applicants_count: number;
+  view_count: number;
+  created_at: string;
+}
+

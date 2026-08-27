@@ -89,22 +89,22 @@ export function ApplicationDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in-0">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-100 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs animate-in fade-in-0">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-slate-900 dark:text-slate-100 shadow-2xl">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-indigo-400" />
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-indigo-500" />
               {application ? "Edit Application" : "New Job Application"}
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Track hiring stages, compensation, and interview dates
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -115,8 +115,8 @@ export function ApplicationDialog({
           {/* Company & Role */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                <Building2 className="h-3.5 w-3.5 text-slate-500" />
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Building2 className="h-3.5 w-3.5 text-slate-400" />
                 Company Name *
               </label>
               <Input
@@ -126,13 +126,13 @@ export function ApplicationDialog({
                   setFormData({ ...formData, company_id: e.target.value })
                 }
                 placeholder="e.g. Stripe, Vercel, Linear"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Briefcase className="h-3.5 w-3.5 text-slate-400" />
                 Job Title *
               </label>
               <Input
@@ -142,7 +142,7 @@ export function ApplicationDialog({
                   setFormData({ ...formData, job_title: e.target.value })
                 }
                 placeholder="e.g. Senior Fullstack Engineer"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs"
               />
             </div>
           </div>
@@ -150,8 +150,8 @@ export function ApplicationDialog({
           {/* Job URL & Source */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                <LinkIcon className="h-3.5 w-3.5 text-slate-500" />
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
                 Job Vacancy URL
               </label>
               <Input
@@ -161,12 +161,12 @@ export function ApplicationDialog({
                   setFormData({ ...formData, job_url: e.target.value })
                 }
                 placeholder="https://..."
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                 Source
               </label>
               <select
@@ -177,7 +177,7 @@ export function ApplicationDialog({
                     source: e.target.value as ApplicationSource,
                   })
                 }
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="linkedin">LinkedIn</option>
                 <option value="indeed">Indeed</option>
@@ -193,7 +193,7 @@ export function ApplicationDialog({
           {/* Status & Work Format */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                 Pipeline Status
               </label>
               <select
@@ -204,7 +204,7 @@ export function ApplicationDialog({
                     status: e.target.value as ApplicationStatus,
                   })
                 }
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="wishlist">Wishlist (Planning)</option>
                 <option value="applied">Applied (Resume Sent)</option>
@@ -218,8 +218,8 @@ export function ApplicationDialog({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-slate-500" />
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 text-slate-400" />
                 Work Format & Location
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -230,8 +230,8 @@ export function ApplicationDialog({
                     onClick={() => setFormData({ ...formData, work_format: fmt })}
                     className={`rounded-lg border py-1.5 text-center text-xs font-medium capitalize transition-all ${
                       formData.work_format === fmt
-                        ? "border-indigo-500 bg-indigo-950/50 text-indigo-300"
-                        : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
+                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
                     }`}
                   >
                     {fmt}
@@ -244,8 +244,8 @@ export function ApplicationDialog({
           {/* Salary Min / Max & Priority */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5 text-slate-500" />
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <DollarSign className="h-3.5 w-3.5 text-slate-400" />
                 Salary Min
               </label>
               <Input
@@ -258,13 +258,13 @@ export function ApplicationDialog({
                   })
                 }
                 placeholder="e.g. 130000"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5 text-slate-500" />
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <DollarSign className="h-3.5 w-3.5 text-slate-400" />
                 Salary Max
               </label>
               <Input
@@ -277,15 +277,15 @@ export function ApplicationDialog({
                   })
                 }
                 placeholder="e.g. 160000"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                 Priority Rating
               </label>
-              <div className="flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-800 bg-slate-950 px-3">
+              <div className="flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
@@ -297,7 +297,7 @@ export function ApplicationDialog({
                       className={`h-4 w-4 ${
                         star <= (formData.priority || 3)
                           ? "fill-amber-400 text-amber-400"
-                          : "text-slate-700"
+                          : "text-slate-300 dark:text-slate-700"
                       }`}
                     />
                   </button>
@@ -309,7 +309,7 @@ export function ApplicationDialog({
           {/* Notes & Cover Letter */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-slate-300">
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                 Personal Notes & Interview Feedback
               </label>
               <Button
@@ -322,11 +322,11 @@ export function ApplicationDialog({
                       ...formData,
                       notes:
                         (formData.notes ? formData.notes + "\n\n" : "") +
-                        `[AI Cover Letter Draft Generated for ${formData.job_title} at ${formData.company_id}]`,
+                        `[AI Tailored Notes for ${formData.job_title} at ${formData.company_id}]`,
                     });
                   }
                 }}
-                className="h-6 text-[11px] text-purple-400 hover:text-purple-300 gap-1"
+                className="h-6 text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-700 gap-1"
               >
                 <Sparkles className="h-3 w-3" />
                 <span>Auto-Draft Notes</span>
@@ -339,12 +339,12 @@ export function ApplicationDialog({
                 setFormData({ ...formData, notes: e.target.value })
               }
               placeholder="Key notes, interview impressions, referral name, questions to ask..."
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           {/* Action Footer */}
-          <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+          <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4">
             {application && onDelete ? (
               <Button
                 type="button"
@@ -366,14 +366,14 @@ export function ApplicationDialog({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-slate-600 dark:text-slate-400"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 size="sm"
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-indigo-600/25"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-sm"
               >
                 <Save className="h-3.5 w-3.5" />
                 <span>{application ? "Save Changes" : "Create Application"}</span>

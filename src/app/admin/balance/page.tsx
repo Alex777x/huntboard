@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 export default function AdminBalancePage() {
+  const { t } = useI18n();
   const [selectedUser, setSelectedUser] = React.useState("anatoli@example.com");
   const [tokensToAdd, setTokensToAdd] = React.useState("100");
   const [reason, setReason] = React.useState("Admin Bonus / Early Adopter Grant");
@@ -25,14 +27,14 @@ export default function AdminBalancePage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-          AI Token Management
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+          {t.admin.balanceTitle}
           <Badge variant="purple" className="text-xs">
-            Admin Balance Tool
+            Admin Quota Tool
           </Badge>
         </h1>
-        <p className="text-xs text-slate-400">
-          Manually top up AI tokens for job seekers or recruiters who requested access
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {t.admin.balanceSubtitle}
         </p>
       </div>
 

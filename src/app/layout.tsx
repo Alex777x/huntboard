@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
+import { MobileNavProvider } from "@/components/providers/MobileNavProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-background text-foreground antialiased selection:bg-indigo-500/30 selection:text-indigo-200 transition-colors duration-200">
+      <body
+        suppressHydrationWarning
+        className="bg-background text-foreground antialiased selection:bg-indigo-500/30 selection:text-indigo-200 transition-colors duration-200"
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -25,7 +29,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <I18nProvider>
-            <QueryProvider>{children}</QueryProvider>
+            <QueryProvider>
+              <MobileNavProvider>{children}</MobileNavProvider>
+            </QueryProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

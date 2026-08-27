@@ -16,6 +16,7 @@ interface KanbanColumnProps {
   title: string;
   applications: Application[];
   onAddClick?: (status: ApplicationStatus) => void;
+  onAddCard?: (status: ApplicationStatus) => void;
   onEditCard?: (app: Application) => void;
 }
 
@@ -24,8 +25,13 @@ export function KanbanColumn({
   title,
   applications,
   onAddClick,
+  onAddCard,
   onEditCard,
 }: KanbanColumnProps) {
+  const handleAdd = () => {
+    if (onAddCard) onAddCard(id);
+    else if (onAddClick) onAddClick(id);
+  };
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -50,7 +56,7 @@ export function KanbanColumn({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => onAddClick?.(id)}
+          onClick={handleAdd}
           className="h-6 w-6 text-slate-400 hover:text-slate-900 dark:hover:text-white"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -74,7 +80,7 @@ export function KanbanColumn({
 
         {applications.length === 0 && (
           <div
-            onClick={() => onAddClick?.(id)}
+            onClick={handleAdd}
             className="flex h-24 cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 dark:border-slate-800/80 text-[11px] text-slate-400 dark:text-slate-600 hover:border-slate-400 dark:hover:border-slate-700 hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
           >
             + Add application

@@ -17,9 +17,22 @@ export function formatCurrency(amount: number | null | undefined, currency: stri
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   }).format(d);
+}
+
+/**
+ * Validates a URL for safe use in href attributes.
+ * Prevents XSS via javascript: and other dangerous protocols.
+ */
+export function safeHref(url: string | null | undefined): string {
+  if (!url) return "#";
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^mailto:/i.test(trimmed)) return trimmed;
+  return "#";
 }

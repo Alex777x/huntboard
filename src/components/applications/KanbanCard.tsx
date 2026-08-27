@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Application } from "@/types/database";
+import { safeHref } from "@/lib/utils";
 
 interface KanbanCardProps {
   application: Application;
@@ -68,7 +69,7 @@ export function KanbanCard({ application, onEdit }: KanbanCardProps) {
               </span>
               {application.job_url && (
                 <a
-                  href={application.job_url}
+                  href={safeHref(application.job_url)}
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}

@@ -35,8 +35,12 @@ describe("CV Data Zod Schema Validation", () => {
       ],
       projects: [],
       languages: [
-        { language: "English", proficiency: "Fluent" as const },
+        { language: "English", proficiency: "Fluent" },
       ],
+      gdprConsent: {
+        enabled: true,
+        text: "I hereby consent to my personal data being processed for recruitment.",
+      },
     };
 
     const parsed = CVDataSchema.safeParse(validCV);

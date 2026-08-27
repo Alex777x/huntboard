@@ -156,14 +156,12 @@ npm run build
 - ✅ **CV Schemas & Feedback Types**: `src/types/cv.test.ts`, `src/types/feedback.test.ts`
 - ✅ **Browser Audit**: 13/13 routes verified in Playwright with **0 console errors**.
 
----
-
 ## 🗺️ Roadmap
 
 - [x] **Phase 1: Seeker Core MVP** (Kanban Board, Structured CV, PDF Export, AI Services)
 - [x] **Phase 2: Recruiter Portal & ATS-Lite** (Job Vacancies, Talent Pool, Stage Pipeline, Direct Invites)
 - [x] **Phase 3: Community, Feedback & i18n** (Community Board, Upvotes, EN/RU/PL Localization, Light/Dark theme)
-- [ ] **Phase 4: Integrations** (LinkedIn Chrome Extension, Google Calendar Two-Way Sync, Telegram / Slack Webhooks)
+- [x] **Phase 4: Integrations & Automation** (LinkedIn Chrome Extension Manifest V3, In-App URL Parser, Google Calendar & .ICS Sync, Telegram Bot Alerts)
 
 ---
 

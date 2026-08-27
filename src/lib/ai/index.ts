@@ -101,7 +101,13 @@ ${jobDescription}`;
           temperature: 0.2,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`OpenAI API error: ${res.status} ${res.statusText}`);
+      }
       const data = await res.json();
+      if (!data.choices?.[0]?.message?.content) {
+        throw new Error("Invalid AI response format: missing choices content");
+      }
       return JSON.parse(data.choices[0].message.content);
     }
 
@@ -133,7 +139,13 @@ Job requirements: ${jobDescription}`;
           temperature: 0.7,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`OpenAI API error: ${res.status} ${res.statusText}`);
+      }
       const data = await res.json();
+      if (!data.choices?.[0]?.message?.content) {
+        throw new Error("Invalid AI response format: missing choices content");
+      }
       return { coverLetter: data.choices[0].message.content };
     }
 

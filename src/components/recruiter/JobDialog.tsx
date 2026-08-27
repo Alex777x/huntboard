@@ -4,35 +4,18 @@ import * as React from "react";
 import {
   X,
   Briefcase,
-  Building2,
+  Building,
   DollarSign,
   MapPin,
-  Globe,
   Save,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { WorkFormat } from "@/types/database";
+import { RecruiterJob, WorkFormat } from "@/types/database";
+import { useI18n } from "@/components/providers/I18nProvider";
 
-export interface RecruiterJob {
-  id: string;
-  recruiter_id: string;
-  title: string;
-  company_name: string;
-  description: string;
-  requirements: string;
-  work_format: WorkFormat;
-  location: string;
-  salary_min: number | null;
-  salary_max: number | null;
-  salary_currency: string;
-  status: "active" | "paused" | "closed";
-  view_count: number;
-  published_to_community: boolean;
-  applicants_count: number;
-  created_at: string;
-}
+export type { RecruiterJob };
 
 interface JobDialogProps {
   isOpen: boolean;
@@ -49,16 +32,17 @@ export function JobDialog({
   onSave,
   onDelete,
 }: JobDialogProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = React.useState<Partial<RecruiterJob>>({
     title: "",
     company_name: "Stripe",
+    department: "Engineering",
+    work_format: "remote",
+    location: "Remote (EU / US)",
+    salary_min: 140000,
+    salary_max: 180000,
     description: "",
     requirements: "",
-    work_format: "remote",
-    location: "Remote (EU / US Timezones)",
-    salary_min: 150000,
-    salary_max: 190000,
-    salary_currency: "USD",
     status: "active",
     published_to_community: true,
   });
@@ -70,13 +54,13 @@ export function JobDialog({
       setFormData({
         title: "",
         company_name: "Stripe",
-        description: "",
-        requirements: "• 5+ years of experience with React & Next.js\n• Strong TypeScript & PostgreSQL skills",
+        department: "Engineering",
         work_format: "remote",
-        location: "Remote",
-        salary_min: 150000,
-        salary_max: 190000,
-        salary_currency: "USD",
+        location: "Remote (EU / US)",
+        salary_min: 140000,
+        salary_max: 180000,
+        description: "",
+        requirements: "",
         status: "active",
         published_to_community: true,
       });
@@ -93,21 +77,21 @@ export function JobDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in-0">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-100 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs animate-in fade-in-0">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-slate-900 dark:text-slate-100 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-purple-400" />
-              {job ? "Edit Vacancy" : "Post New Job Vacancy"}
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-indigo-600 dark:text-purple-400" />
+              {job ? t.recruiter.dialog.editTitle : t.recruiter.dialog.postNewTitle}
             </h2>
-            <p className="text-xs text-slate-400">
-              Create a job opening to source candidates and manage the applicant pipeline
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t.recruiter.dialog.dialogSubtitle}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -116,60 +100,70 @@ export function JobDialog({
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Job Title *</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.jobTitle}
+              </label>
               <Input
                 required
                 value={formData.title || ""}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g. Senior Frontend Engineer"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Company Name *</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.companyName}
+              </label>
               <Input
                 required
                 value={formData.company_name || ""}
                 onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                 placeholder="e.g. Stripe"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Work Format</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.workFormat}
+              </label>
               <select
                 value={formData.work_format || "remote"}
                 onChange={(e) => setFormData({ ...formData, work_format: e.target.value as WorkFormat })}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="remote">Remote</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="onsite">On-site</option>
+                <option value="remote">{t.common.remote}</option>
+                <option value="hybrid">{t.common.hybrid}</option>
+                <option value="onsite">{t.common.onsite}</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Location / HQ</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.location}
+              </label>
               <Input
                 value={formData.location || ""}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 placeholder="e.g. San Francisco or Remote"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Status</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.status}
+              </label>
               <select
                 value={formData.status || "active"}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "paused" | "closed" })}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 capitalize"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 capitalize"
               >
-                <option value="active">Active (Accepting)</option>
+                <option value="active">{t.common.active}</option>
                 <option value="paused">Paused</option>
                 <option value="closed">Closed / Filled</option>
               </select>
@@ -178,47 +172,55 @@ export function JobDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Salary Min ($ USD/yr)</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.salaryMin}
+              </label>
               <Input
                 type="number"
                 value={formData.salary_min || ""}
                 onChange={(e) => setFormData({ ...formData, salary_min: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="e.g. 140000"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Salary Max ($ USD/yr)</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {t.recruiter.dialog.salaryMax}
+              </label>
               <Input
                 type="number"
                 value={formData.salary_max || ""}
                 onChange={(e) => setFormData({ ...formData, salary_max: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="e.g. 180000"
-                className="bg-slate-950 border-slate-800 text-xs"
+                className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Role Description & Mission</label>
+            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              {t.recruiter.dialog.description}
+            </label>
             <textarea
               rows={3}
               value={formData.description || ""}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="About the team, key responsibilities..."
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-2.5 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">Requirements & Key Skills</label>
+            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              {t.recruiter.dialog.requirements}
+            </label>
             <textarea
               rows={3}
               value={formData.requirements || ""}
               onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
               placeholder="• Required experience, stack, competencies..."
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-2.5 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
             />
           </div>
 
@@ -228,14 +230,14 @@ export function JobDialog({
               id="pub"
               checked={formData.published_to_community}
               onChange={(e) => setFormData({ ...formData, published_to_community: e.target.checked })}
-              className="rounded border-slate-800 bg-slate-950 text-purple-600 focus:ring-purple-500"
+              className="rounded border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-indigo-600 focus:ring-indigo-500"
             />
-            <label htmlFor="pub" className="text-xs text-slate-300 cursor-pointer">
-              Publish to public <strong>Community Job Board</strong> with verified recruiter badge
+            <label htmlFor="pub" className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+              {t.recruiter.dialog.publishCommunity}
             </label>
           </div>
 
-          <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+          <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4">
             {job && onDelete ? (
               <Button
                 type="button"
@@ -245,7 +247,7 @@ export function JobDialog({
                 className="text-xs gap-1.5"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span>Delete</span>
+                <span>{t.common.delete}</span>
               </Button>
             ) : (
               <div />
@@ -257,17 +259,17 @@ export function JobDialog({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
               >
-                Cancel
+                {t.common.cancel}
               </Button>
               <Button
                 type="submit"
                 size="sm"
-                className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-purple-600/25"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-indigo-600/25"
               >
                 <Save className="h-3.5 w-3.5" />
-                <span>{job ? "Save Changes" : "Publish Vacancy"}</span>
+                <span>{job ? t.common.saveChanges : t.recruiter.dialog.publishBtn}</span>
               </Button>
             </div>
           </div>

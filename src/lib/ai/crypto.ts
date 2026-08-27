@@ -5,7 +5,13 @@ const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
 function getSecretKey(): Buffer {
-  const secret = process.env.AI_ENCRYPTION_SECRET || "huntboard-super-secure-32-byte-key-2026!";
+  const secret = process.env.AI_ENCRYPTION_SECRET || (process.env.NODE_ENV !== "production" ? "huntboard-dev-local-secret-32b-key!" : "");
+  if (!secret) {
+    throw new Error(
+      "CRITICAL: AI_ENCRYPTION_SECRET environment variable is required in production. " +
+      "Set it in .env.local to enable API key encryption."
+    );
+  }
   return crypto.createHash("sha256").update(secret).digest();
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AIService } from "@/lib/ai";
+import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
 const ATSRequestSchema = z.object({
@@ -11,6 +12,15 @@ const ATSRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate user in production when Supabase is configured
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user && process.env.NODE_ENV === "production") {
+        return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+      }
+    }
+
     const body = await req.json();
     const parsed = ATSRequestSchema.safeParse(body);
 
