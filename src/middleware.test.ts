@@ -13,6 +13,8 @@ describe("Middleware Route Protection & Auth Rules", () => {
     expect(isPublicRoute("/_next/static/chunks/main.js")).toBe(true);
     expect(isPublicRoute("/favicon.ico")).toBe(true);
     expect(isPublicRoute("/icon.svg")).toBe(true);
+    expect(isPublicRoute("/manifest.webmanifest")).toBe(true);
+    expect(isPublicRoute("/sw.js")).toBe(true);
   });
 
   it("strictly protects all API routes against unauthenticated access (C-1 regression fix)", () => {

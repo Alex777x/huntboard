@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export const PUBLIC_ROUTES = new Set(["/", "/login", "/register"]);
-export const PUBLIC_PREFIXES = ["/auth", "/_next", "/favicon.ico", "/icon.svg"];
+export const PUBLIC_PREFIXES = [
+  "/auth",
+  "/_next",
+  "/favicon.ico",
+  "/icon.svg",
+  "/manifest.webmanifest",
+  "/sw.js",
+];
 
 export function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.has(pathname)) return true;

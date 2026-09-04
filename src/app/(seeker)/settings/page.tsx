@@ -23,12 +23,14 @@ import {
   Bell,
   Calendar,
   Download,
+  Smartphone,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { usePwa } from "@/components/pwa/PwaProvider";
 import { LATEST_CURATED_MODELS, AIProviderName, AIModelOption } from "@/lib/ai/types";
 
 // Filter out non-text, media, image, video, audio, TTS, and embedding models
@@ -170,6 +172,23 @@ export default function SettingsPage() {
   const [isTestingTelegram, setIsTestingTelegram] = React.useState(false);
   const [telegramSuccess, setTelegramSuccess] = React.useState<string | null>(null);
   const [telegramError, setTelegramError] = React.useState<string | null>(null);
+
+  // PWA & Push Notifications State
+  const { isInstalled, canInstall, installApp, pushPermission, requestPushPermission, sendTestPush } = usePwa();
+  const [isTestingPush, setIsTestingPush] = React.useState(false);
+  const [pushSuccess, setPushSuccess] = React.useState<string | null>(null);
+
+  const handleTestPushNotification = async () => {
+    setIsTestingPush(true);
+    setPushSuccess(null);
+    try {
+      await sendTestPush();
+      setPushSuccess(t.pwa.testPushSuccess);
+      setTimeout(() => setPushSuccess(null), 3500);
+    } finally {
+      setIsTestingPush(false);
+    }
+  };
 
   // Load configuration and cached live models from localStorage with strict text-only sanitize
   React.useEffect(() => {
@@ -938,6 +957,97 @@ export default function SettingsPage() {
                 Ready in repo /extension
               </Badge>
             </div>
+          </Card>
+
+          {/* Card 3: Progressive Web App & Web Push Notifications */}
+          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-5 space-y-4 shadow-xs md:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold">
+                    <Smartphone className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {t.pwa.pushNotifications}
+                  </h3>
+                  {isInstalled ? (
+                    <Badge variant="success" className="text-[10px]">
+                      PWA Standalone
+                    </Badge>
+                  ) : canInstall ? (
+                    <Badge variant="outline" className="text-[10px] text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">
+                      Installable
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {t.pwa.pushDesc}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {canInstall && !isInstalled && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={installApp}
+                    className="text-xs h-8 gap-1.5 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>{t.pwa.installButton}</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-1">
+                <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Bell className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Browser Push Alerts Status</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {pushPermission === "granted"
+                    ? t.pwa.pushEnabled
+                    : "Push notifications are currently disabled in your browser."}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {pushPermission === "granted" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isTestingPush}
+                    onClick={handleTestPushNotification}
+                    className="text-xs h-8 gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                  >
+                    {isTestingPush ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Bell className="h-3.5 w-3.5 text-indigo-500" />
+                    )}
+                    <span>{t.pwa.testPush}</span>
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={requestPushPermission}
+                    className="text-xs h-8 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold gap-1.5 shadow-xs"
+                  >
+                    <Bell className="h-3.5 w-3.5" />
+                    <span>{t.pwa.enablePush}</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {pushSuccess && (
+              <div className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 p-2.5 rounded-lg flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>{pushSuccess}</span>
+              </div>
+            )}
           </Card>
         </div>
       </div>

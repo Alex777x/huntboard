@@ -13,6 +13,7 @@ import {
   UserCheck,
   Building,
   Menu,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,11 +27,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useMobileNav } from "@/components/providers/MobileNavProvider";
+import { usePwa } from "@/components/pwa/PwaProvider";
 
 export function Header({ onNewApplication }: { onNewApplication?: () => void }) {
   const pathname = usePathname();
   const { locale, setLocale, t } = useI18n();
   const { toggle } = useMobileNav();
+  const { canInstall, isInstalled, installApp } = usePwa();
 
   const isRecruiter = pathname?.startsWith("/recruiter");
   const isAdmin = pathname?.startsWith("/admin");
@@ -122,6 +125,20 @@ export function Header({ onNewApplication }: { onNewApplication?: () => void }) 
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* PWA Install Quick Button (shown if installable and not yet standalone) */}
+        {canInstall && !isInstalled && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={installApp}
+            className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold gap-1.5 border-indigo-200 dark:border-indigo-800/80 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 shadow-xs"
+            title={t.pwa.installApp}
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">{t.pwa.installApp}</span>
+          </Button>
+        )}
 
         {/* Theme Toggle (Dark/Light) */}
         <ThemeToggle />

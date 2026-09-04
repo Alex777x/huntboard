@@ -34,6 +34,8 @@ const securityHeaders = [
       "img-src 'self' blob: data: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.telegram.org",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
       "frame-ancestors 'none'",
       "form-action 'self'",
       "base-uri 'self'",
