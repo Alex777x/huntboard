@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_ROUTES = new Set(["/", "/login", "/register"]);
-const PUBLIC_PREFIXES = ["/auth", "/api/", "/_next", "/favicon.ico"];
+export const PUBLIC_ROUTES = new Set(["/", "/login", "/register"]);
+export const PUBLIC_PREFIXES = ["/auth", "/_next", "/favicon.ico", "/icon.svg"];
 
-function isPublicRoute(pathname: string): boolean {
+export function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
@@ -54,8 +54,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users to login (or return 401 for API routes)
   if (!user) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in." },
+        { status: 401 }
+      );
+    }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);

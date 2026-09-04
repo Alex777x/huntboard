@@ -1,29 +1,74 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { isSafePublicUrl } from "@/lib/security/ssrf";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
-export async function OPTIONS() {
+// Restrict CORS to known origins (extension and local dev)
+const ALLOWED_ORIGINS = new Set([
+  "chrome-extension://huntboard-extension", // Replace with actual extension ID
+  "http://localhost:3000",
+]);
+
+function corsHeaders(origin: string | null) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : "";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get("origin");
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
+    headers: corsHeaders(origin),
   });
 }
 
 export async function POST(req: Request) {
+  const origin = req.headers.get("origin");
+  const headers = corsHeaders(origin);
+
   try {
+    // Rate limiting: max 30 extension requests per minute
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "extension-client";
+    const rl = checkRateLimit(`ext:${clientIp}`, { max: 30, windowMs: 60 * 1000 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { ok: false, error: "Too many requests. Please wait a moment." },
+        { status: 429, headers }
+      );
+    }
+
+    // Authenticate the user
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json(
+          { ok: false, error: "Unauthorized. Please sign in." },
+          { status: 401, headers }
+        );
+      }
+    }
+
     const body = await req.json();
     const { action, url, job_title, company_id, stage, target_salary, notes } = body;
 
     // Action 1: Parse from raw URL
     if (action === "parse-url" && url) {
+      if (!isSafePublicUrl(url)) {
+        return NextResponse.json(
+          { ok: false, error: "Invalid or disallowed URL. Only public HTTP/HTTPS URLs are supported." },
+          { status: 400, headers }
+        );
+      }
       const parsedUrl = new URL(url);
       let guessedCompany = "Company";
       let guessedTitle = "Software Engineer";
 
       if (parsedUrl.hostname.includes("linkedin.com")) {
-        // e.g. linkedin.com/jobs/view/123456 or linkedin.com/jobs/view/software-engineer-at-stripe-12345
         const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
         const lastSegment = pathSegments[pathSegments.length - 1] || "";
         const parts = lastSegment.split("-at-");
@@ -51,11 +96,7 @@ export async function POST(req: Request) {
             notes: `Imported from: ${url}`,
           },
         },
-        {
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
+        { headers }
       );
     }
 
@@ -63,7 +104,7 @@ export async function POST(req: Request) {
     if (!job_title || !company_id) {
       return NextResponse.json(
         { ok: false, error: "Job title and Company are required." },
-        { status: 400, headers: { "Access-Control-Allow-Origin": "*" } }
+        { status: 400, headers }
       );
     }
 
@@ -79,12 +120,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { ok: true, message: "Job successfully received and queued for Kanban sync!", job: newJob },
-      { headers: { "Access-Control-Allow-Origin": "*" } }
+      { headers }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to process extension request";
     return NextResponse.json(
-      { ok: false, error: err.message || "Failed to process extension request" },
-      { status: 500, headers: { "Access-Control-Allow-Origin": "*" } }
+      { ok: false, error: message },
+      { status: 500, headers }
     );
   }
 }

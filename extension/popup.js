@@ -43,7 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      const res = await fetch("http://localhost:3000/api/integrations/extension", {
+      const storage = await chrome.storage?.sync?.get(["huntboardUrl"]).catch(() => ({}));
+      const baseUrl = storage?.huntboardUrl || "http://localhost:3000";
+
+      const res = await fetch(`${baseUrl}/api/integrations/extension`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

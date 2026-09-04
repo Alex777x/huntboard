@@ -602,7 +602,7 @@ export default function SettingsPage() {
                       <a
                         href={p.docUrl}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-[11px] text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 underline mt-0.5 inline-flex items-center gap-1"
                       >
                         <span>Get {p.name} API Key from official dashboard</span>

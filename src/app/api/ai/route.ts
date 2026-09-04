@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CVData } from "@/types/cv";
 import { LATEST_CURATED_MODELS, AIProviderName } from "@/lib/ai/types";
+import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 // Strict filter to exclude all non-text, media, image, video, audio, TTS, embedding, and specialized models
 function isStrictTextLLM(id: string, displayName?: string, description?: string): boolean {
@@ -50,6 +52,25 @@ function isStrictTextLLM(id: string, displayName?: string, description?: string)
 
 export async function POST(req: NextRequest) {
   try {
+    // Defense-in-depth: verify authentication even though middleware enforces it
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+      }
+    }
+
+    // Rate limiting: max 30 requests per minute per IP / caller
+    const clientIdentifier = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const rateLimit = checkRateLimit(`ai:${clientIdentifier}`, { max: 30, windowMs: 60 * 1000 });
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many AI requests. Please wait a moment before trying again." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const body = await req.json();
     const {
       action,
@@ -65,7 +86,20 @@ export async function POST(req: NextRequest) {
       tone = "professional",
     } = body;
 
-    const apiKey = (clientApiKey || process.env.OPENAI_API_KEY || "").trim();
+    // Input bounds validation (DoS & Unbounded Token Consumption defense)
+    if (textToEnhance && typeof textToEnhance === "string" && textToEnhance.length > 15000) {
+      return NextResponse.json({ error: "Input text exceeds allowed length (max 15,000 chars)." }, { status: 400 });
+    }
+    if (jobDescription && typeof jobDescription === "string" && jobDescription.length > 30000) {
+      return NextResponse.json({ error: "Job description exceeds allowed length (max 30,000 chars)." }, { status: 400 });
+    }
+    if (jobTitle && typeof jobTitle === "string" && jobTitle.length > 300) {
+      return NextResponse.json({ error: "Job title exceeds allowed length (max 300 chars)." }, { status: 400 });
+    }
+
+    // Server key fallback is only available when user provides their own key
+    // or when explicitly configured. Never expose the server key to unauthenticated users.
+    const apiKey = (clientApiKey || "").trim() || (process.env.OPENAI_API_KEY || "").trim();
     const selectedModel = model === "custom" || !model ? "gpt-5.6-sol" : model;
 
     // Helper: Execute LLM Completion

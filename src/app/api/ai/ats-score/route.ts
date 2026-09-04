@@ -1,22 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AIService } from "@/lib/ai";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { z } from "zod";
 
 const ATSRequestSchema = z.object({
-  cvText: z.string().min(10, "CV text is too short"),
-  jobDescription: z.string().min(10, "Job description is too short"),
+  cvText: z.string().min(10, "CV text is too short").max(50000, "CV text exceeds limit (max 50,000 chars)"),
+  jobDescription: z.string().min(10, "Job description is too short").max(50000, "Job description exceeds limit (max 50,000 chars)"),
   provider: z.enum(["openai", "gemini", "anthropic"]).optional().default("openai"),
-  apiKey: z.string().optional(),
+  apiKey: z.string().max(500).optional(),
 });
 
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate user in production when Supabase is configured
+    // Rate limit: max 20 requests per minute
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "ats-client";
+    const rl = checkRateLimit(`ats:${clientIp}`, { max: 20, windowMs: 60 * 1000 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many ATS analysis requests. Please wait a moment." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
+    // Authenticate user unconditionally when Supabase is configured
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user && process.env.NODE_ENV === "production") {
+      if (!user) {
         return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
       }
     }

@@ -185,7 +185,7 @@ export default function CompaniesPage() {
                       <a
                         href={safeHref(c.website)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                       >

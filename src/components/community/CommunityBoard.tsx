@@ -312,7 +312,7 @@ export function CommunityBoard({
                       <a
                         href={safeHref(post.jobUrl)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />

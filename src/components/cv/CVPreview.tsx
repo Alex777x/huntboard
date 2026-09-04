@@ -155,7 +155,7 @@ export function CVPreview({ data }: CVPreviewProps) {
                 <a
                   href={safeHref(data.personal.linkedinUrl)}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="hover:underline text-slate-950 print:text-black"
                 >
                   {data.personal.linkedinUrl}
@@ -168,7 +168,7 @@ export function CVPreview({ data }: CVPreviewProps) {
                 <a
                   href={safeHref(data.personal.githubUrl)}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="hover:underline text-slate-950 print:text-black"
                 >
                   {cleanGithubDisplay(data.personal.githubUrl)}

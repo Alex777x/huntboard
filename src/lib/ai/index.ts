@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   AIProviderName,
   ATSScoreRequest,
@@ -5,6 +6,15 @@ import {
   CoverLetterRequest,
   CoverLetterResponse,
 } from "./types";
+
+const ATSScoreOutputSchema = z.object({
+  score: z.number().min(0).max(100),
+  matchPercentage: z.number().min(0).max(100).optional(),
+  matchedSkills: z.array(z.string()).default([]),
+  missingSkills: z.array(z.string()).default([]),
+  actionableSuggestions: z.array(z.string()).default([]),
+  summary: z.string().default(""),
+});
 
 export class AIService {
   private provider: AIProviderName;
@@ -108,7 +118,21 @@ ${jobDescription}`;
       if (!data.choices?.[0]?.message?.content) {
         throw new Error("Invalid AI response format: missing choices content");
       }
-      return JSON.parse(data.choices[0].message.content);
+
+      try {
+        const raw = JSON.parse(data.choices[0].message.content);
+        const parsed = ATSScoreOutputSchema.safeParse(raw);
+        if (parsed.success) {
+          const d = parsed.data;
+          return {
+            ...d,
+            matchPercentage: d.matchPercentage ?? d.score,
+          };
+        }
+      } catch {
+        // Fallback to heuristic analysis if model produces malformed output
+      }
+      return this.heuristicATSAnalysis(cvText, jobDescription);
     }
 
     // Default fallback if provider parser not matched

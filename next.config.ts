@@ -25,6 +25,20 @@ const securityHeaders = [
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
   },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' blob: data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.telegram.org",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "base-uri 'self'",
+    ].join("; "),
+  },
 ];
 
 const nextConfig: NextConfig = {

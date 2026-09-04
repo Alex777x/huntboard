@@ -202,7 +202,7 @@ export default function ContactsPage() {
                   <a
                     href={safeHref(c.linkedin_url)}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="text-sky-600 dark:text-sky-400 hover:underline text-[11px]"
                   >

@@ -274,7 +274,7 @@ export default function CalendarPage() {
                   <a
                     href={gCalUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     title={t.calendar.addToGoogleCalendar}
                   >
                     <Button
@@ -291,7 +291,7 @@ export default function CalendarPage() {
                     <a
                       href={safeHref(ev.meetUrl)}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                     >
                       <Button
                         size="sm"
