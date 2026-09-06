@@ -31,77 +31,6 @@ import { safeHref, localeIncludes } from "@/lib/utils";
 
 const now = Date.now();
 
-const initialCommunityPosts: CommunityJobPost[] = [
-  {
-    id: "post-1",
-    authorName: "Jessica Miller (Stripe Recruiter)",
-    companyName: "Stripe",
-    jobTitle: "Senior Fullstack Engineer (Billing & Payments)",
-    jobUrl: "https://stripe.com/jobs",
-    workFormat: "remote",
-    location: "Remote (EU / US Timezones)",
-    description:
-      "We're hiring a Senior Fullstack Engineer to lead our billing UI and ledger microservices. Great culture, deep written asynchronous work, and top-tier compensation ($150k-$185k).",
-    tags: ["Next.js 15", "TypeScript", "PostgreSQL", "Tailwind CSS"],
-    upvotes: 42,
-    downvotes: 1,
-    userVote: null,
-    isVerifiedRecruiter: true,
-    postedDate: new Date(now - 2 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "post-2",
-    authorName: "Alexandre Dev",
-    companyName: "Linear",
-    jobTitle: "Product Engineer (Sync Engine & Web)",
-    jobUrl: "https://linear.app/careers",
-    workFormat: "remote",
-    location: "Remote (Worldwide)",
-    description:
-      "Linear is looking for product engineers who obsess over 60fps UI responsiveness, local-first SQLite sync, and high craftsmanship.",
-    tags: ["React 19", "TypeScript", "Local-first", "Tailwind"],
-    upvotes: 68,
-    downvotes: 0,
-    userVote: "up",
-    isVerifiedRecruiter: false,
-    postedDate: new Date(now - 5 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "post-3",
-    authorName: "Sarah Chen (Supabase Talent)",
-    companyName: "Supabase",
-    jobTitle: "Database Platform Engineer",
-    jobUrl: "https://supabase.com/careers",
-    workFormat: "remote",
-    location: "Remote",
-    description:
-      "Work on open-source PostgreSQL extensions, realtime replication, and edge functions. Fully distributed team.",
-    tags: ["PostgreSQL", "Go", "Docker", "Supabase"],
-    upvotes: 35,
-    downvotes: 2,
-    userVote: null,
-    isVerifiedRecruiter: true,
-    postedDate: new Date(now - 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "post-4",
-    authorName: "Karol Wiśniewski",
-    companyName: "Vercel",
-    jobTitle: "Developer Experience Engineer",
-    jobUrl: "https://vercel.com/careers",
-    workFormat: "remote",
-    location: "Remote",
-    description:
-      "Help thousands of developers ship faster with Next.js 15, Turbopack, and AI SDK integrations.",
-    tags: ["Next.js", "AI SDK", "TypeScript"],
-    upvotes: 29,
-    downvotes: 1,
-    userVote: null,
-    isVerifiedRecruiter: false,
-    postedDate: new Date(now - 48 * 3600 * 1000).toISOString(),
-  },
-];
-
 interface CommunityBoardProps {
   isRecruiterMode?: boolean;
   defaultAuthorName?: string;
@@ -112,7 +41,8 @@ export function CommunityBoard({
   defaultAuthorName,
 }: CommunityBoardProps) {
   const { t, locale, fmt } = useI18n();
-  const [posts, setPosts] = React.useState<CommunityJobPost[]>(initialCommunityPosts);
+  const [posts, setPosts] = React.useState<CommunityJobPost[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [filterVerifiedOnly, setFilterVerifiedOnly] = React.useState(false);
   const [savedPosts, setSavedPosts] = React.useState<Record<string, boolean>>({});
@@ -121,6 +51,45 @@ export function CommunityBoard({
   // Modals
   const [isNewPostOpen, setIsNewPostOpen] = React.useState(false);
   const [reportingPost, setReportingPost] = React.useState<CommunityJobPost | null>(null);
+
+  React.useEffect(() => {
+    async function fetchData() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("community_posts")
+        .select("*")
+        .order("posted_date", { ascending: false });
+        
+      if (data && !error) {
+        setPosts(data.map((d: any) => ({
+          id: d.id,
+          authorName: d.author_name,
+          companyName: d.company_name,
+          jobTitle: d.job_title,
+          jobUrl: d.job_url,
+          workFormat: d.work_format,
+          location: d.location,
+          description: d.description,
+          tags: d.tags || [],
+          upvotes: d.upvotes || 0,
+          downvotes: d.downvotes || 0,
+          userVote: d.user_vote,
+          isVerifiedRecruiter: d.is_verified_recruiter,
+          postedDate: d.posted_date,
+        })));
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   const handleVote = (postId: string, direction: "up" | "down") => {
     setPosts((prev) =>

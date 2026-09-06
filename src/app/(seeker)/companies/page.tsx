@@ -19,65 +19,39 @@ import { CompanyDialog } from "@/components/companies/CompanyDialog";
 import { Company } from "@/types/database";
 import { safeHref, localeIncludes } from "@/lib/utils";
 import { useI18n } from "@/components/providers/I18nProvider";
-
-const initialCompanies: Company[] = [
-  {
-    id: "comp-1",
-    profile_id: "user-1",
-    name: "Stripe",
-    website: "https://stripe.com",
-    industry: "Fintech & Payments",
-    size: "Enterprise (7,000+)",
-    location: "San Francisco / Remote",
-    notes: "Engineering culture focuses on high API reliability and written communication.",
-    logo_url: null,
-    created_at: "2026-08-20T10:00:00Z",
-    updated_at: "2026-08-20T10:00:00Z",
-  },
-  {
-    id: "comp-2",
-    profile_id: "user-1",
-    name: "Vercel",
-    website: "https://vercel.com",
-    industry: "Developer Tools & Cloud",
-    size: "Mid-size (500+)",
-    location: "Remote (Global)",
-    notes: "Creators of Next.js and Turbopack. Fast interview turnaround.",
-    logo_url: null,
-    created_at: "2026-08-22T10:00:00Z",
-    updated_at: "2026-08-22T10:00:00Z",
-  },
-  {
-    id: "comp-3",
-    profile_id: "user-1",
-    name: "Linear",
-    website: "https://linear.app",
-    industry: "Productivity Software",
-    size: "Startup (80+)",
-    location: "Remote",
-    notes: "Heavy emphasis on product craft, UI responsiveness, and sync engines.",
-    logo_url: null,
-    created_at: "2026-08-15T10:00:00Z",
-    updated_at: "2026-08-15T10:00:00Z",
-  },
-  {
-    id: "comp-4",
-    profile_id: "user-1",
-    name: "Spotify",
-    website: "https://spotify.com",
-    industry: "Audio Streaming",
-    size: "Enterprise (9,000+)",
-    location: "Stockholm / Hybrid",
-    notes: "Platform engineering teams use microfrontends and internal developer portals.",
-    logo_url: null,
-    created_at: "2026-08-18T10:00:00Z",
-    updated_at: "2026-08-18T10:00:00Z",
-  },
-];
+import { createClient } from "@/lib/supabase/client";
 
 export default function CompaniesPage() {
   const { t, locale, fmt } = useI18n();
-  const [companies, setCompanies] = React.useState<Company[]>(initialCompanies);
+  const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("profile_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        if (data) setCompanies(data as Company[]);
+      } catch (err) {
+        console.error("Failed to fetch companies:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCompanies();
+  }, []);
   const [search, setSearch] = React.useState("");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingCompany, setEditingCompany] = React.useState<Company | null>(null);

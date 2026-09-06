@@ -30,80 +30,58 @@ import {
   generateIcsContent,
   downloadIcsFile,
 } from "@/lib/calendar/ical";
-
-const initialEvents: CalendarEventItem[] = [
-  {
-    id: "ev-1",
-    title: "System Design & Architecture Panel",
-    companyName: "Stripe",
-    type: "System Design",
-    date: "2026-08-30",
-    time: "16:00 - 17:00 (CET)",
-    meetUrl: "https://meet.google.com/abc-defg-hij",
-    interviewers: "Jessica Miller & David Chen",
-    notes: "Focus on high-concurrency payment ledger database schema and edge caching.",
-  },
-  {
-    id: "ev-2",
-    title: "Vercel Technical Deep-Dive",
-    companyName: "Vercel",
-    type: "Technical Interview",
-    date: "2026-09-02",
-    time: "17:30 - 18:30 (CET)",
-    meetUrl: "https://zoom.us/j/12345678",
-    interviewers: "Sarah Jenkins (Staff Engineer)",
-    notes: "Deep dive into React 19 Server Components and Turbopack bundler internals.",
-  },
-  {
-    id: "ev-3",
-    title: "Follow-up on Spotify Application",
-    companyName: "Spotify",
-    type: "Follow-up Reminder",
-    date: "2026-09-01",
-    time: "10:00 (CET)",
-    interviewers: "Karolina Wisniewska",
-    notes: "Applied 6 days ago. Send friendly LinkedIn message checking on status.",
-  },
-  {
-    id: "ev-4",
-    title: "Linear Offer Sign-off Deadline",
-    companyName: "Linear",
-    type: "Offer Deadline",
-    date: "2026-09-05",
-    time: "23:59 (CET)",
-    interviewers: "Karri Saarinen",
-    notes: "Review final equity grants and remote workspace setup allowance.",
-  },
-];
+import { createClient } from "@/lib/supabase/client";
+import { Event as DbEvent } from "@/types/database";
 
 export default function CalendarPage() {
   const { t, locale, fmt } = useI18n();
-  const [events, setEvents] = React.useState<CalendarEventItem[]>(initialEvents);
+  const [events, setEvents] = React.useState<CalendarEventItem[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingEvent, setEditingEvent] = React.useState<CalendarEventItem | null>(null);
 
-  // Load from localStorage
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem("huntboard_calendar_events");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setEvents(parsed);
+    const fetchEvents = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
         }
+
+        const { data, error } = await supabase
+          .from("events")
+          .select("*")
+          .eq("profile_id", user.id)
+          .order("event_date", { ascending: true });
+
+        if (error) throw error;
+        if (data) {
+          const mapped: CalendarEventItem[] = (data as DbEvent[]).map((ev) => ({
+            id: ev.id,
+            title: ev.title,
+            companyName: ev.company_name || "",
+            type: ev.event_type || "",
+            date: ev.event_date,
+            time: ev.time_range || "",
+            meetUrl: ev.video_link || undefined,
+            interviewers: ev.interviewers || undefined,
+            notes: ev.notes || undefined,
+          }));
+          setEvents(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch events:", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error("Error loading calendar events:", e);
-    }
+    };
+    fetchEvents();
   }, []);
 
   const saveEvents = (updated: CalendarEventItem[]) => {
     setEvents(updated);
-    try {
-      localStorage.setItem("huntboard_calendar_events", JSON.stringify(updated));
-    } catch (e) {
-      console.error("Error saving calendar events:", e);
-    }
   };
 
   // Form State

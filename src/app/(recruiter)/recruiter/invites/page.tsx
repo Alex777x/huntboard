@@ -29,43 +29,45 @@ interface SentInvite {
   message: string;
 }
 
-const initialSentInvites: SentInvite[] = [
-  {
-    id: "inv-1",
-    candidateName: "Anatoli Liaksandrou",
-    candidateRole: "Senior Fullstack Engineer",
-    jobTitle: "Senior Fullstack Engineer (Payments)",
-    companyName: "Stripe",
-    sentDate: "Aug 24, 2026",
-    status: "accepted",
-    message: "Hi Anatoli, we were impressed by your Next.js 15 and PostgreSQL background and would love to interview you!",
-  },
-  {
-    id: "inv-2",
-    candidateName: "Marek Kowalski",
-    candidateRole: "Staff Frontend Engineer",
-    jobTitle: "Frontend Architect (Design Systems)",
-    companyName: "Stripe",
-    sentDate: "Aug 23, 2026",
-    status: "pending",
-    message: "Hi Marek, we'd like to invite you for a discussion regarding our core Design Systems role.",
-  },
-  {
-    id: "inv-3",
-    candidateName: "Svetlana Petrova",
-    candidateRole: "Senior Backend Developer",
-    jobTitle: "Staff Backend Engineer (Postgres)",
-    companyName: "Stripe",
-    sentDate: "Aug 21, 2026",
-    status: "pending",
-    message: "Hi Svetlana, we saw your payment transaction experience and want to invite you to our team.",
-  },
-];
-
 export default function RecruiterInvitesPage() {
   const { t } = useI18n();
-  const [invites, setInvites] = React.useState<SentInvite[]>(initialSentInvites);
+  const [invites, setInvites] = React.useState<SentInvite[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
+
+  React.useEffect(() => {
+    async function fetchData() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("invites")
+        .select("*")
+        .eq("type", "recruiter")
+        .order("date", { ascending: false });
+        
+      if (data && !error) {
+        setInvites(data.map((d: any) => ({
+          id: d.id,
+          candidateName: d.candidate_name,
+          candidateRole: d.candidate_role,
+          jobTitle: d.job_title,
+          companyName: d.company_name,
+          sentDate: new Date(d.date).toLocaleDateString(),
+          status: d.status,
+          message: d.message,
+        })));
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   const filtered = invites.filter((inv) =>
     inv.candidateName.toLowerCase().includes(search.toLowerCase()) ||

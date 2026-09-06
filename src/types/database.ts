@@ -174,3 +174,30 @@ export interface RecruiterJob {
   created_at: string;
 }
 
+
+export interface Event {
+  id: string;
+  profile_id: string;
+  title: string;
+  company_name: string | null;
+  event_type: string | null;
+  event_date: string;
+  time_range: string | null;
+  interviewers: string | null;
+  video_link: string | null;
+  location: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface FeedbackTicket {
+  id: string;
+  profile_id: string;
+  ticket_type: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  created_at: string;
+}

@@ -38,6 +38,7 @@ import { JobUrlImportDialog } from "@/components/applications/JobUrlImportDialog
 import { Application, ApplicationStatus } from "@/types/database";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const columnIds: ApplicationStatus[] = [
   "wishlist",
@@ -48,172 +49,37 @@ const columnIds: ApplicationStatus[] = [
   "rejected",
 ];
 
-const initialApplications: Application[] = [
-  {
-    id: "app-1",
-    profile_id: "user-1",
-    company_id: "Stripe",
-    cv_id: null,
-    recruiter_job_id: null,
-    job_title: "Senior Fullstack Engineer",
-    job_url: "https://stripe.com/jobs",
-    job_description: "Core Payments platform engineering.",
-    status: "interview",
-    custom_status_id: null,
-    source: "linkedin",
-    work_format: "remote",
-    job_location: "Remote (EU)",
-    salary_min: 140000,
-    salary_max: 170000,
-    salary_currency: "USD",
-    priority: 5,
-    notes: "Passed coding interview. System design scheduled for tomorrow.",
-    cover_letter: null,
-    applied_at: "2026-08-20",
-    next_interview_at: "2026-08-27T14:00:00Z",
-    deadline_at: null,
-    ats_score: {
-      score: 92,
-      matched_skills: ["Next.js", "TypeScript", "Postgres"],
-      missing_skills: ["Ruby"],
-      suggestions: ["Add high-throughput API metrics"],
-    },
-    created_at: "2026-08-20T10:00:00Z",
-    updated_at: "2026-08-24T10:00:00Z",
-  },
-  {
-    id: "app-2",
-    profile_id: "user-1",
-    company_id: "Vercel",
-    cv_id: null,
-    recruiter_job_id: null,
-    job_title: "Frontend Systems Engineer",
-    job_url: "https://vercel.com/careers",
-    job_description: "App Router & Turbopack Core team.",
-    status: "phone_screen",
-    custom_status_id: null,
-    source: "referral",
-    work_format: "remote",
-    job_location: "Remote",
-    salary_min: 150000,
-    salary_max: 180000,
-    salary_currency: "USD",
-    priority: 5,
-    notes: "Warm intro from David Chen. HR screen was very positive.",
-    cover_letter: null,
-    applied_at: "2026-08-22",
-    next_interview_at: "2026-08-29T16:30:00Z",
-    deadline_at: null,
-    ats_score: {
-      score: 88,
-      matched_skills: ["React 19", "Next.js", "Tailwind"],
-      missing_skills: ["Rust"],
-      suggestions: ["Highlight Turbopack benchmark work"],
-    },
-    created_at: "2026-08-22T10:00:00Z",
-    updated_at: "2026-08-22T10:00:00Z",
-  },
-  {
-    id: "app-3",
-    profile_id: "user-1",
-    company_id: "Spotify",
-    cv_id: null,
-    recruiter_job_id: null,
-    job_title: "Staff Web Platform Engineer",
-    job_url: "https://spotify.com/jobs",
-    job_description: "Web SDK and creator tools.",
-    status: "applied",
-    custom_status_id: null,
-    source: "linkedin",
-    work_format: "hybrid",
-    job_location: "Stockholm",
-    salary_min: 110000,
-    salary_max: 130000,
-    salary_currency: "EUR",
-    priority: 4,
-    notes: "Applied with tailored Frontend CV.",
-    cover_letter: null,
-    applied_at: "2026-08-20",
-    next_interview_at: null,
-    deadline_at: null,
-    ats_score: {
-      score: 85,
-      matched_skills: ["TypeScript", "Audio Web APIs"],
-      missing_skills: ["Java"],
-      suggestions: ["Tailor experience to platform SDKs"],
-    },
-    created_at: "2026-08-20T10:00:00Z",
-    updated_at: "2026-08-20T10:00:00Z",
-  },
-  {
-    id: "app-4",
-    profile_id: "user-1",
-    company_id: "Linear",
-    cv_id: null,
-    recruiter_job_id: null,
-    job_title: "Product Engineer",
-    job_url: "https://linear.app/careers",
-    job_description: "Fast keyboard-first issue tracker.",
-    status: "offer",
-    custom_status_id: null,
-    source: "community",
-    work_format: "remote",
-    job_location: "Remote",
-    salary_min: 160000,
-    salary_max: 190000,
-    salary_currency: "USD",
-    priority: 5,
-    notes: "Offer received! Negotiating equity and remote equipment budget.",
-    cover_letter: null,
-    applied_at: "2026-08-10",
-    next_interview_at: null,
-    deadline_at: "2026-09-05",
-    ats_score: {
-      score: 96,
-      matched_skills: ["React", "TypeScript", "Sync Engines", "Tailwind"],
-      missing_skills: [],
-      suggestions: [],
-    },
-    created_at: "2026-08-10T10:00:00Z",
-    updated_at: "2026-08-25T10:00:00Z",
-  },
-  {
-    id: "app-5",
-    profile_id: "user-1",
-    company_id: "OpenAI",
-    cv_id: null,
-    recruiter_job_id: null,
-    job_title: "Fullstack Platform Engineer",
-    job_url: "https://openai.com/careers",
-    job_description: "Developer platform & API playground.",
-    status: "wishlist",
-    custom_status_id: null,
-    source: "company_site",
-    work_format: "remote",
-    job_location: "San Francisco / Remote",
-    salary_min: 200000,
-    salary_max: 250000,
-    salary_currency: "USD",
-    priority: 5,
-    notes: "Preparing CV before submitting.",
-    cover_letter: null,
-    applied_at: null,
-    next_interview_at: null,
-    deadline_at: null,
-    ats_score: {
-      score: 91,
-      matched_skills: ["Python", "TypeScript", "Next.js", "LLM"],
-      missing_skills: [],
-      suggestions: ["Run ATS Benchmark on CV"],
-    },
-    created_at: "2026-08-25T10:00:00Z",
-    updated_at: "2026-08-25T10:00:00Z",
-  },
-];
-
 export function ApplicationBoard() {
   const { t, locale, fmt } = useI18n();
-  const [applications, setApplications] = React.useState<Application[]>(initialApplications);
+  const [applications, setApplications] = React.useState<Application[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("profile_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        if (data) setApplications(data as Application[]);
+      } catch (err) {
+        console.error("Failed to fetch applications:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchApps();
+  }, []);
   const [viewMode, setViewMode] = React.useState<"kanban" | "table">("kanban");
   const [search, setSearch] = React.useState("");
   const [activeDragApp, setActiveDragApp] = React.useState<Application | null>(null);

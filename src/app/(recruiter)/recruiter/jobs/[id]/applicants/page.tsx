@@ -28,14 +28,11 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
-type ApplicantStage =
-  | "new"
-  | "reviewed"
-  | "shortlisted"
-  | "interview"
-  | "offer"
-  | "rejected";
+import { ApplicationStatus } from "@/types/database";
+
+type ApplicantStage = ApplicationStatus;
 
 interface JobApplicant {
   id: string;
@@ -50,99 +47,135 @@ interface JobApplicant {
   skills: string[];
 }
 
-const initialApplicants: JobApplicant[] = [
-  {
-    id: "app-1",
-    name: "Anatoli Liaksandrou",
-    email: "anatoli@example.com",
-    currentRole: "Senior Fullstack Engineer",
-    matchScore: 96,
-    stage: "interview",
-    appliedDate: "Aug 22, 2026",
-    coverLetterSnippet:
-      "Passionate Software Engineer with 6+ years in Next.js 15, TypeScript and distributed PostgreSQL systems...",
-    recruiterNotes: "Exceptional system design background. Scheduled for panel with VP of Engineering.",
-    skills: ["Next.js 15", "TypeScript", "PostgreSQL", "Tailwind CSS"],
-  },
-  {
-    id: "app-2",
-    name: "Marek Kowalski",
-    email: "marek@example.com",
-    currentRole: "Staff Frontend Engineer",
-    matchScore: 92,
-    stage: "shortlisted",
-    appliedDate: "Aug 23, 2026",
-    coverLetterSnippet: "Specialized in micro-frontends and core web vitals optimization.",
-    recruiterNotes: "Strong UI craft. Reviewing code samples.",
-    skills: ["React 19", "TypeScript", "Vite", "Design Systems"],
-  },
-  {
-    id: "app-3",
-    name: "Elena Rostova",
-    email: "elena@example.com",
-    currentRole: "Fullstack Developer",
-    matchScore: 86,
-    stage: "reviewed",
-    appliedDate: "Aug 24, 2026",
-    coverLetterSnippet: "3 years experience with Next.js and Supabase backend.",
-    recruiterNotes: "Good candidate for Mid/Senior band.",
-    skills: ["Next.js", "Node.js", "Supabase"],
-  },
-  {
-    id: "app-4",
-    name: "David Kim",
-    email: "david@example.com",
-    currentRole: "Frontend Engineer",
-    matchScore: 78,
-    stage: "new",
-    appliedDate: "Aug 25, 2026",
-    coverLetterSnippet: "Looking to transition into high-scale fintech systems.",
-    recruiterNotes: "Awaiting initial resume screen.",
-    skills: ["JavaScript", "React", "CSS"],
-  },
-  {
-    id: "app-5",
-    name: "Sophie Laurent",
-    email: "sophie@example.com",
-    currentRole: "Lead Architect",
-    matchScore: 98,
-    stage: "offer",
-    appliedDate: "Aug 15, 2026",
-    coverLetterSnippet: "Ex-Stripe technical lead with extensive payments domain experience.",
-    recruiterNotes: "Offer extended: $185k base + equity grant. Awaiting sign-off.",
-    skills: ["Next.js", "TypeScript", "Postgres", "Distributed Systems"],
-  },
-];
-
 export default function JobApplicantsPage() {
   const params = useParams();
   const { t, locale } = useI18n();
-  const [applicants, setApplicants] = React.useState<JobApplicant[]>(initialApplicants);
+  const [applicants, setApplicants] = React.useState<JobApplicant[]>([]);
   const [search, setSearch] = React.useState("");
-  const [selectedApplicant, setSelectedApplicant] = React.useState<JobApplicant | null>(null);
+  const [selectedApplicant, setSelectedApplicant] =
+    React.useState<JobApplicant | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [jobTitle, setJobTitle] = React.useState("Loading...");
+  const supabase = createClient();
 
-  const pipelineStages: { id: ApplicantStage; title: string; color: string }[] = [
-    { id: "new", title: t.recruiter.stages.new, color: "border-blue-500/40" },
-    { id: "reviewed", title: t.recruiter.stages.reviewed, color: "border-purple-500/40" },
-    { id: "shortlisted", title: t.recruiter.stages.shortlisted, color: "border-amber-500/40" },
-    { id: "interview", title: t.recruiter.stages.interview, color: "border-indigo-500/40" },
-    { id: "offer", title: t.recruiter.stages.offer, color: "border-emerald-500/40" },
-    { id: "rejected", title: t.recruiter.stages.rejected, color: "border-slate-300 dark:border-slate-800" },
-  ];
+  React.useEffect(() => {
+    async function loadData() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-  const moveStage = (applicantId: string, newStage: ApplicantStage) => {
+      const { data: jobData } = await supabase
+        .from("recruiter_jobs")
+        .select("title")
+        .eq("id", params.id)
+        .single();
+
+      if (jobData) {
+        setJobTitle(jobData.title);
+      } else {
+        setJobTitle("Unknown Job");
+      }
+
+      const { data: appsData } = await supabase
+        .from("applications")
+        .select(
+          `
+          *,
+          profiles (
+            full_name,
+            current_role,
+            skills
+          )
+        `,
+        )
+        .eq("recruiter_job_id", params.id);
+
+      if (appsData) {
+        const formatted: JobApplicant[] = appsData.map((app: any) => ({
+          id: app.id,
+          name: app.profiles?.full_name || "Unknown",
+          email: "candidate@example.com",
+          currentRole: app.profiles?.current_role || "Candidate",
+          matchScore: app.ats_score?.score || 0,
+          stage: app.status as ApplicantStage,
+          appliedDate: new Date(app.created_at).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }),
+          coverLetterSnippet:
+            app.cover_letter || app.notes || "No cover letter provided.",
+          recruiterNotes: app.notes || "",
+          skills: (app.profiles?.skills || []).map((s: any) =>
+            typeof s === "string" ? s : s.name,
+          ),
+        }));
+        setApplicants(formatted);
+      }
+      setLoading(false);
+    }
+    loadData();
+  }, [params.id, supabase]);
+
+  const pipelineStages: { id: ApplicantStage; title: string; color: string }[] =
+    [
+      {
+        id: "applied",
+        title: t.recruiter.stages.new,
+        color: "border-blue-500/40",
+      },
+      {
+        id: "phone_screen",
+        title: t.recruiter.stages.reviewed,
+        color: "border-purple-500/40",
+      },
+      {
+        id: "interview",
+        title: t.recruiter.stages.interview,
+        color: "border-indigo-500/40",
+      },
+      {
+        id: "offer",
+        title: t.recruiter.stages.offer,
+        color: "border-emerald-500/40",
+      },
+      {
+        id: "rejected",
+        title: t.recruiter.stages.rejected,
+        color: "border-slate-300 dark:border-slate-800",
+      },
+    ];
+
+  const moveStage = async (applicantId: string, newStage: ApplicantStage) => {
     setApplicants((prev) =>
-      prev.map((a) => (a.id === applicantId ? { ...a, stage: newStage } : a))
+      prev.map((a) => (a.id === applicantId ? { ...a, stage: newStage } : a)),
     );
     if (selectedApplicant?.id === applicantId) {
       setSelectedApplicant({ ...selectedApplicant, stage: newStage });
     }
+    await supabase
+      .from("applications")
+      .update({ status: newStage })
+      .eq("id", applicantId);
   };
 
-  const filteredApplicants = applicants.filter((a) =>
-    localeIncludes(a.name, search, locale) ||
-    localeIncludes(a.currentRole, search, locale)
+  const filteredApplicants = applicants.filter(
+    (a) =>
+      localeIncludes(a.name, search, locale) ||
+      localeIncludes(a.currentRole, search, locale),
   );
+
+  if (loading) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6">
@@ -157,7 +190,7 @@ export default function JobApplicantsPage() {
             <span>← {t.recruiter.backToJobs}</span>
           </Link>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            Senior Fullstack Engineer (Payments)
+            {jobTitle}
             <Badge variant="purple" className="text-xs">
               {t.recruiter.atsPipeline}
             </Badge>
@@ -182,7 +215,9 @@ export default function JobApplicantsPage() {
       {/* Kanban Pipeline Columns */}
       <div className="flex gap-4 overflow-x-auto pb-6 pt-1">
         {pipelineStages.map((stage) => {
-          const stageApplicants = filteredApplicants.filter((a) => a.stage === stage.id);
+          const stageApplicants = filteredApplicants.filter(
+            (a) => a.stage === stage.id,
+          );
 
           return (
             <div
@@ -211,7 +246,10 @@ export default function JobApplicantsPage() {
                       <div className="flex items-center gap-2">
                         <Avatar className="h-7 w-7 border border-indigo-200 dark:border-slate-700">
                           <AvatarFallback className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-[10px]">
-                            {app.name.split(" ").map((n) => n[0]).join("")}
+                            {app.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div>
@@ -242,7 +280,9 @@ export default function JobApplicantsPage() {
                     </div>
 
                     <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 pt-2 text-[10px] text-slate-500 dark:text-slate-400">
-                      <span>{t.recruiter.applied} {app.appliedDate}</span>
+                      <span>
+                        {t.recruiter.applied} {app.appliedDate}
+                      </span>
                       <span className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">
                         {t.recruiter.review}
                       </span>
@@ -270,7 +310,10 @@ export default function JobApplicantsPage() {
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12 border border-purple-500/30">
                   <AvatarFallback className="bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-sm">
-                    {selectedApplicant.name.split(" ").map((n) => n[0]).join("")}
+                    {selectedApplicant.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -280,8 +323,12 @@ export default function JobApplicantsPage() {
                       {selectedApplicant.matchScore}% {t.recruiter.matchScore}
                     </Badge>
                   </h3>
-                  <p className="text-xs text-purple-600 dark:text-purple-300 font-medium">{selectedApplicant.currentRole}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{selectedApplicant.email}</p>
+                  <p className="text-xs text-purple-600 dark:text-purple-300 font-medium">
+                    {selectedApplicant.currentRole}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {selectedApplicant.email}
+                  </p>
                 </div>
               </div>
 
@@ -337,11 +384,16 @@ export default function JobApplicantsPage() {
                 value={selectedApplicant.recruiterNotes}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setSelectedApplicant({ ...selectedApplicant, recruiterNotes: val });
+                  setSelectedApplicant({
+                    ...selectedApplicant,
+                    recruiterNotes: val,
+                  });
                   setApplicants((prev) =>
                     prev.map((a) =>
-                      a.id === selectedApplicant.id ? { ...a, recruiterNotes: val } : a
-                    )
+                      a.id === selectedApplicant.id
+                        ? { ...a, recruiterNotes: val }
+                        : a,
+                    ),
                   );
                 }}
                 placeholder={t.recruiter.notesPlaceholder}
@@ -360,7 +412,15 @@ export default function JobApplicantsPage() {
                 {t.common.close}
               </Button>
               <Button
-                onClick={() => setSelectedApplicant(null)}
+                onClick={async () => {
+                  if (selectedApplicant) {
+                    await supabase
+                      .from("applications")
+                      .update({ notes: selectedApplicant.recruiterNotes })
+                      .eq("id", selectedApplicant.id);
+                  }
+                  setSelectedApplicant(null);
+                }}
                 size="sm"
                 className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-xs"
               >

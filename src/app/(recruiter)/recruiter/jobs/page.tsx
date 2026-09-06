@@ -24,70 +24,38 @@ import { RecruiterJob } from "@/types/database";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
 
-const initialJobs: RecruiterJob[] = [
-  {
-    id: "job-1",
-    recruiter_id: "rec-1",
-    title: "Senior Fullstack Engineer (Payments)",
-    company_name: "Stripe",
-    description: "Core billing & payment infrastructure engineering team.",
-    requirements: "• 5+ years with React, Next.js, Node.js\n• Experience with high-availability systems",
-    work_format: "remote",
-    location: "Remote (EU / US)",
-    salary_min: 150000,
-    salary_max: 185000,
-    salary_currency: "USD",
-    status: "active",
-    view_count: 482,
-    published_to_community: true,
-    applicants_count: 14,
-    created_at: "2026-08-20T10:00:00Z",
-  },
-  {
-    id: "job-2",
-    recruiter_id: "rec-1",
-    title: "Frontend Architect (Design Systems)",
-    company_name: "Stripe",
-    description: "Building scalable UI primitives and accessibility standards.",
-    requirements: "• Deep TypeScript, Tailwind CSS, Radix UI mastery\n• Performance optimization",
-    work_format: "remote",
-    location: "Remote",
-    salary_min: 160000,
-    salary_max: 195000,
-    salary_currency: "USD",
-    status: "active",
-    view_count: 319,
-    published_to_community: true,
-    applicants_count: 8,
-    created_at: "2026-08-22T10:00:00Z",
-  },
-  {
-    id: "job-3",
-    recruiter_id: "rec-1",
-    title: "Staff Backend Engineer (Postgres & Data)",
-    company_name: "Stripe",
-    description: "Distributed ledger & transaction processing.",
-    requirements: "• PostgreSQL query optimization, connection pooling\n• Distributed databases",
-    work_format: "hybrid",
-    location: "San Francisco, CA",
-    salary_min: 190000,
-    salary_max: 230000,
-    salary_currency: "USD",
-    status: "active",
-    view_count: 245,
-    published_to_community: false,
-    applicants_count: 5,
-    created_at: "2026-08-24T10:00:00Z",
-  },
-];
-
 export default function RecruiterJobsPage() {
   const { t, locale, fmt } = useI18n();
-  const [jobs, setJobs] = React.useState<RecruiterJob[]>(initialJobs);
+  const [jobs, setJobs] = React.useState<RecruiterJob[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "paused" | "closed">("all");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingJob, setEditingJob] = React.useState<RecruiterJob | null>(null);
+
+  React.useEffect(() => {
+    async function fetchData() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("recruiter_jobs")
+        .select("*")
+        .order("created_at", { ascending: false });
+        
+      if (data && !error) {
+        setJobs(data as RecruiterJob[]);
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   const filteredJobs = React.useMemo(() => {
     return jobs.filter((j) => {

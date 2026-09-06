@@ -24,74 +24,6 @@ import { Card } from "@/components/ui/card";
 import { FeedbackTicket } from "@/types/feedback";
 import { useI18n } from "@/components/providers/I18nProvider";
 
-const initialTickets: FeedbackTicket[] = [
-  {
-    id: "fb-1",
-    type: "feature",
-    title: "Phase 4: LinkedIn Chrome Extension (Manifest V3)",
-    description: "1-Click capture of job postings from LinkedIn, Indeed, and Glassdoor directly into the Kanban pipeline.",
-    severity: "high",
-    status: "resolved",
-    userEmail: "anatoli@example.com",
-    userName: "HuntBoard Team",
-    createdAt: "Today",
-    upvotes: 42,
-    adminNotes: "Implemented with Manifest V3 and In-App URL Parser.",
-  },
-  {
-    id: "fb-2",
-    type: "feature",
-    title: "Phase 4: Google Calendar 1-Click Sync & .ICS Export",
-    description: "Export interview rounds directly to Google Calendar and download universal .ICS calendar files.",
-    severity: "high",
-    status: "resolved",
-    userEmail: "anatoli@example.com",
-    userName: "HuntBoard Team",
-    createdAt: "Today",
-    upvotes: 38,
-    adminNotes: "Live on /calendar with single & batch .ICS export.",
-  },
-  {
-    id: "fb-3",
-    type: "feature",
-    title: "Phase 4: Telegram Instant Alerts for Recruiter Invites",
-    description: "Receive instant notifications in Telegram whenever a verified employer sends a direct interview invitation.",
-    severity: "high",
-    status: "resolved",
-    userEmail: "anatoli@example.com",
-    userName: "HuntBoard Team",
-    createdAt: "Today",
-    upvotes: 35,
-    adminNotes: "Live in Settings -> Integrations with Bot API test runner.",
-  },
-  {
-    id: "fb-4",
-    type: "feature",
-    title: "Support for custom color tags on Kanban cards",
-    description: "It would be great to define custom color codes for tags like 'High Priority', 'Referral', or 'Remote EU'.",
-    severity: "medium",
-    status: "planned",
-    userEmail: "anatoli@example.com",
-    userName: "Anatoli Liaksandrou",
-    createdAt: "Aug 24, 2026",
-    upvotes: 18,
-    adminNotes: "Scheduled for release in next minor update.",
-  },
-  {
-    id: "fb-5",
-    type: "bug",
-    title: "ATS Scorer score bar layout on narrow mobile screens",
-    description: "On mobile screen sizes under 360px, the match percentage badge wraps awkwardly.",
-    severity: "low",
-    status: "resolved",
-    userEmail: "marek@example.com",
-    userName: "Marek K.",
-    createdAt: "Aug 22, 2026",
-    upvotes: 4,
-    adminNotes: "Fixed in CSS media queries.",
-  },
-];
-
 const ROADMAP_PHASES = [
   {
     phase: "Phase 1",
@@ -125,8 +57,45 @@ const ROADMAP_PHASES = [
 
 export default function FeedbackPage() {
   const { t, locale, fmt } = useI18n();
-  const [tickets, setTickets] = React.useState<FeedbackTicket[]>(initialTickets);
+  const [tickets, setTickets] = React.useState<FeedbackTicket[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"roadmap" | "form">("roadmap");
+
+  React.useEffect(() => {
+    async function fetchData() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("feedback_tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+        
+      if (data && !error) {
+        setTickets(data.map((d: any) => ({
+          id: d.id,
+          type: d.type as any,
+          title: d.title,
+          description: d.description || "",
+          severity: d.severity as any,
+          status: d.status as any,
+          userEmail: d.user_email || "",
+          userName: d.user_name || "",
+          createdAt: new Date(d.created_at).toLocaleDateString(),
+          upvotes: d.upvotes || 0,
+          adminNotes: d.admin_notes || "",
+        })));
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   // Form fields
   const [feedbackType, setFeedbackType] = React.useState<"feature" | "bug" | "general">("feature");

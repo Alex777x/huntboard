@@ -33,41 +33,47 @@ interface SeekerInvite {
   status: "pending" | "accepted" | "declined";
 }
 
-const initialSeekerInvites: SeekerInvite[] = [
-  {
-    id: "inv-101",
-    recruiterName: "Jessica Miller (Senior Tech Recruiter)",
-    companyName: "Stripe",
-    isVerifiedCompany: true,
-    jobTitle: "Senior Fullstack Engineer (Payments)",
-    location: "Remote (EU / US)",
-    salaryMin: 150000,
-    salaryMax: 185000,
-    message:
-      "Hi Anatoli! We noticed your profile and open-to-relocation status on HuntBoard. Your expertise in Next.js 15, TypeScript, and distributed Postgres is a great match for our Billing team. Would you be open to an initial technical screen this week?",
-    date: "Aug 25, 2026",
-    status: "pending",
-  },
-  {
-    id: "inv-102",
-    recruiterName: "David Chen (Engineering Manager)",
-    companyName: "Vercel",
-    isVerifiedCompany: true,
-    jobTitle: "Frontend Systems Engineer",
-    location: "Remote",
-    salaryMin: 160000,
-    salaryMax: 190000,
-    message:
-      "Hello Anatoli, our App Router core team is expanding. We saw your CV ATS profile and would love to invite you for a conversation with the team.",
-    date: "Aug 22, 2026",
-    status: "accepted",
-  },
-];
-
 export default function SeekerInvitesPage() {
   const { t, locale, fmt } = useI18n();
-  const [invites, setInvites] = React.useState<SeekerInvite[]>(initialSeekerInvites);
+  const [invites, setInvites] = React.useState<SeekerInvite[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [toastMessage, setToastMessage] = React.useState("");
+
+  React.useEffect(() => {
+    async function fetchData() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from("invites")
+        .select("*")
+        .eq("type", "seeker");
+        
+      if (data && !error) {
+        setInvites(data.map((d: any) => ({
+          id: d.id,
+          recruiterName: d.recruiter_name,
+          companyName: d.company_name,
+          isVerifiedCompany: d.is_verified_company,
+          jobTitle: d.job_title,
+          location: d.location,
+          salaryMin: d.salary_min,
+          salaryMax: d.salary_max,
+          message: d.message,
+          date: d.date,
+          status: d.status,
+        })));
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   const handleAccept = (invite: SeekerInvite) => {
     setInvites((prev) =>

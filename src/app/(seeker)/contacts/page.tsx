@@ -21,52 +21,39 @@ import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { Contact } from "@/types/database";
 import { safeHref, localeIncludes } from "@/lib/utils";
 import { useI18n } from "@/components/providers/I18nProvider";
-
-const initialContacts: Contact[] = [
-  {
-    id: "cont-1",
-    profile_id: "user-1",
-    name: "Jessica Miller",
-    role: "Senior Tech Recruiter",
-    company_id: "Stripe",
-    email: "jmiller@stripe.com",
-    phone: "+1 (415) 555-0199",
-    linkedin_url: "https://linkedin.com/in/example",
-    notes: "Initial phone screen contact. Very responsive to follow-up emails.",
-    created_at: "2026-08-20T10:00:00Z",
-    updated_at: "2026-08-20T10:00:00Z",
-  },
-  {
-    id: "cont-2",
-    profile_id: "user-1",
-    name: "David Chen",
-    role: "Engineering Manager (Next.js Team)",
-    company_id: "Vercel",
-    email: "dchen@vercel.com",
-    phone: null,
-    linkedin_url: "https://linkedin.com/in/example",
-    notes: "Interviewer for System Design stage. Focuses on SSR caching & Edge Runtime.",
-    created_at: "2026-08-22T10:00:00Z",
-    updated_at: "2026-08-22T10:00:00Z",
-  },
-  {
-    id: "cont-3",
-    profile_id: "user-1",
-    name: "Karolina Wisniewska",
-    role: "Talent Acquisition Partner",
-    company_id: "Spotify",
-    email: "kwisniewska@spotify.com",
-    phone: null,
-    linkedin_url: "https://linkedin.com/in/example",
-    notes: "Coordinates technical panels and interview scheduling.",
-    created_at: "2026-08-18T10:00:00Z",
-    updated_at: "2026-08-18T10:00:00Z",
-  },
-];
+import { createClient } from "@/lib/supabase/client";
 
 export default function ContactsPage() {
   const { t, locale, fmt } = useI18n();
-  const [contacts, setContacts] = React.useState<Contact[]>(initialContacts);
+  const [contacts, setContacts] = React.useState<Contact[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq("profile_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        if (data) setContacts(data as Contact[]);
+      } catch (err) {
+        console.error("Failed to fetch contacts:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContacts();
+  }, []);
   const [search, setSearch] = React.useState("");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingContact, setEditingContact] = React.useState<Contact | null>(null);
