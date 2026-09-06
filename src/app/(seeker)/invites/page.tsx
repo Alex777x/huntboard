@@ -65,7 +65,7 @@ const initialSeekerInvites: SeekerInvite[] = [
 ];
 
 export default function SeekerInvitesPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [invites, setInvites] = React.useState<SeekerInvite[]>(initialSeekerInvites);
   const [toastMessage, setToastMessage] = React.useState("");
 
@@ -138,7 +138,7 @@ export default function SeekerInvitesPage() {
                       {t.community.verifiedEmployer}
                     </Badge>
                   )}
-                  <span className="text-xs text-slate-400 dark:text-slate-500">• {invite.date}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">• {fmt.formatDate(invite.date)}</span>
                 </div>
                 <h3 className="text-base font-bold text-purple-700 dark:text-purple-300">
                   {invite.jobTitle}
@@ -149,7 +149,7 @@ export default function SeekerInvitesPage() {
                     {invite.location}
                   </span>
                   <span className="text-slate-700 dark:text-slate-300 font-medium">
-                    ${(invite.salaryMin / 1000).toFixed(0)}k - ${(invite.salaryMax / 1000).toFixed(0)}k USD
+                    {fmt.formatSalaryCompact(invite.salaryMin, invite.salaryMax)}
                   </span>
                 </div>
               </div>

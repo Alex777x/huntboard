@@ -27,7 +27,9 @@ import { Card } from "@/components/ui/card";
 import { NewPostDialog, CommunityJobPost } from "@/components/community/NewPostDialog";
 import { ReportDialog } from "@/components/community/ReportDialog";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { safeHref } from "@/lib/utils";
+import { safeHref, localeIncludes } from "@/lib/utils";
+
+const now = Date.now();
 
 const initialCommunityPosts: CommunityJobPost[] = [
   {
@@ -45,7 +47,7 @@ const initialCommunityPosts: CommunityJobPost[] = [
     downvotes: 1,
     userVote: null,
     isVerifiedRecruiter: true,
-    postedDate: "2 hours ago",
+    postedDate: new Date(now - 2 * 3600 * 1000).toISOString(),
   },
   {
     id: "post-2",
@@ -62,7 +64,7 @@ const initialCommunityPosts: CommunityJobPost[] = [
     downvotes: 0,
     userVote: "up",
     isVerifiedRecruiter: false,
-    postedDate: "5 hours ago",
+    postedDate: new Date(now - 5 * 3600 * 1000).toISOString(),
   },
   {
     id: "post-3",
@@ -79,7 +81,7 @@ const initialCommunityPosts: CommunityJobPost[] = [
     downvotes: 2,
     userVote: null,
     isVerifiedRecruiter: true,
-    postedDate: "1 day ago",
+    postedDate: new Date(now - 24 * 3600 * 1000).toISOString(),
   },
   {
     id: "post-4",
@@ -96,7 +98,7 @@ const initialCommunityPosts: CommunityJobPost[] = [
     downvotes: 1,
     userVote: null,
     isVerifiedRecruiter: false,
-    postedDate: "2 days ago",
+    postedDate: new Date(now - 48 * 3600 * 1000).toISOString(),
   },
 ];
 
@@ -109,7 +111,7 @@ export function CommunityBoard({
   isRecruiterMode = false,
   defaultAuthorName,
 }: CommunityBoardProps) {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [posts, setPosts] = React.useState<CommunityJobPost[]>(initialCommunityPosts);
   const [search, setSearch] = React.useState("");
   const [filterVerifiedOnly, setFilterVerifiedOnly] = React.useState(false);
@@ -165,7 +167,7 @@ export function CommunityBoard({
       downvotes: 0,
       userVote: "up",
       isVerifiedRecruiter: isRecruiterMode ? true : data.isVerifiedRecruiter,
-      postedDate: "Just now",
+      postedDate: new Date().toISOString(),
     };
     setPosts([newPost, ...posts]);
   };
@@ -173,15 +175,15 @@ export function CommunityBoard({
   const filteredPosts = React.useMemo(() => {
     return posts.filter((p) => {
       const matchesSearch =
-        p.jobTitle.toLowerCase().includes(search.toLowerCase()) ||
-        p.companyName.toLowerCase().includes(search.toLowerCase()) ||
-        p.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
+        localeIncludes(p.jobTitle, search, locale) ||
+        localeIncludes(p.companyName, search, locale) ||
+        p.tags.some((tag) => localeIncludes(tag, search, locale));
 
       const matchesVerified = filterVerifiedOnly ? p.isVerifiedRecruiter : true;
 
       return matchesSearch && matchesVerified;
     });
-  }, [posts, search, filterVerifiedOnly]);
+  }, [posts, search, filterVerifiedOnly, locale]);
 
   return (
     <div className="w-full space-y-6">
@@ -218,7 +220,7 @@ export function CommunityBoard({
           </div>
           <Link href={isRecruiterMode ? "/recruiter/jobs" : "/applications"}>
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 gap-1">
-              <span>{isRecruiterMode ? t.recruiter.jobsTitle : t.nav.applications}</span>
+              <span>{isRecruiterMode ? t.nav.hiringPipeline : t.nav.applications}</span>
               <ArrowRight className="h-3 w-3" />
             </Button>
           </Link>
@@ -233,7 +235,7 @@ export function CommunityBoard({
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t.common.searchPlaceholder}
+            placeholder={t.community.searchPlaceholder}
             className="pl-8 text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
           />
         </div>
@@ -302,7 +304,7 @@ export function CommunityBoard({
                       </Badge>
                     )}
                     <span className="text-xs text-slate-400 dark:text-slate-500">
-                      • {post.postedDate} {t.community.by} {post.authorName}
+                      • {fmt.formatRelativeTime(post.postedDate)} {t.community.by} {post.authorName}
                     </span>
                   </div>
 
@@ -377,7 +379,7 @@ export function CommunityBoard({
         isOpen={isNewPostOpen}
         onClose={() => setIsNewPostOpen(false)}
         onPostCreated={handleCreatePost}
-        authorName={defaultAuthorName || (isRecruiterMode ? "Jessica Miller (Stripe Recruiter)" : undefined)}
+        authorName={defaultAuthorName || (isRecruiterMode ? "Jessica Miller (Stripe Recruiter)" : t.common.anonymousUser)}
       />
 
       <ReportDialog

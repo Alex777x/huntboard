@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/I18nProvider";
 
 export default function SeekerDashboardPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
 
   const funnelStages = [
     { stage: t.applications.stages.wishlist, count: 24, percentage: "100%", color: "bg-slate-500 dark:bg-slate-600" },
@@ -90,7 +90,7 @@ export default function SeekerDashboardPage() {
             <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">
               {t.dashboard.matchAccuracy}
             </span>
-            <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400 mt-1">94%</span>
+            <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{fmt.formatPercent(94, 0)}</span>
             <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
               {t.dashboard.topTierProfile}
             </span>
@@ -141,7 +141,7 @@ export default function SeekerDashboardPage() {
             <span className="font-semibold uppercase tracking-wider">{t.dashboard.interviewRate}</span>
             <Calendar className="h-4 w-4 text-purple-500" />
           </div>
-          <div className="text-3xl font-extrabold text-purple-600 dark:text-purple-300">25.0%</div>
+          <div className="text-3xl font-extrabold text-purple-600 dark:text-purple-300">{fmt.formatPercent(25, 1)}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {t.dashboard.avgBenchmark}
           </div>
@@ -325,7 +325,7 @@ export default function SeekerDashboardPage() {
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">Stripe Recruiting</h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Invited you for Senior Fullstack Engineer ($150k-$185k)
+                Invited you for Senior Fullstack Engineer ({fmt.formatSalaryCompact(150000, 185000)})
               </p>
             </div>
             <Link href="/invites">

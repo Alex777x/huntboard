@@ -15,8 +15,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 export default function RegisterPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [selectedRole, setSelectedRole] = React.useState<"seeker" | "recruiter">("seeker");
 
@@ -38,10 +40,10 @@ export default function RegisterPage() {
             </span>
           </Link>
           <h2 className="text-lg font-bold text-white">
-            Choose your account type
+            {t.auth.register}
           </h2>
           <p className="text-xs text-slate-400">
-            Select how you plan to use HuntBoard to customize your workspace
+            {t.auth.register}
           </p>
         </div>
 
@@ -66,7 +68,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-white">Job Seeker</h3>
+              <h3 className="text-sm font-bold text-white">{t.auth.seekerRole}</h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 Track job applications, optimize CV with AI ATS benchmarking, and receive private interview invites.
               </p>
@@ -97,7 +99,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-white">Recruiter / Employer</h3>
+              <h3 className="text-sm font-bold text-white">{t.auth.recruiterRole}</h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 Publish vacancies on the Community Board, search opt-in talent, and manage candidate pipelines.
               </p>
@@ -116,12 +118,12 @@ export default function RegisterPage() {
             onClick={handleContinue}
             className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs gap-2 shadow-lg shadow-indigo-600/20"
           >
-            <span>Continue with Google as {selectedRole === "seeker" ? "Job Seeker" : "Recruiter"}</span>
+            <span>{t.auth.register}</span>
             <ArrowRight className="h-4 w-4" />
           </Button>
 
           <p className="text-[11px] text-center text-slate-500">
-            Already have an account?{" "}
+            {" "}
             <Link href="/login" className="text-indigo-400 hover:underline font-semibold">
               Log in
             </Link>

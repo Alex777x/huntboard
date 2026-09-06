@@ -124,7 +124,7 @@ const ROADMAP_PHASES = [
 ];
 
 export default function FeedbackPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [tickets, setTickets] = React.useState<FeedbackTicket[]>(initialTickets);
   const [activeTab, setActiveTab] = React.useState<"roadmap" | "form">("roadmap");
 
@@ -149,7 +149,7 @@ export default function FeedbackPage() {
       status: "pending",
       userEmail,
       userName: "Anatoli Liaksandrou",
-      createdAt: "Just now",
+      createdAt: t.common.justNow,
       upvotes: 1,
     };
 

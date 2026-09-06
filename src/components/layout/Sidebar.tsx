@@ -191,7 +191,7 @@ export function Sidebar({ className }: { className?: string }) {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              150 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">tokens</span>
+              150 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t.common.tokens}</span>
             </span>
             <Link
               href="/settings"

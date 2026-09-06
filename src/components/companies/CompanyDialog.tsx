@@ -69,7 +69,7 @@ export function CompanyDialog({
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            {company ? "Edit Company" : "Add Target Company"}
+            {company ? t.common.edit : t.companies.addCompany}
           </h2>
           <button
             onClick={onClose}

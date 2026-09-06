@@ -54,7 +54,7 @@ const INITIAL_VERSIONS: CVVersion[] = [
 ];
 
 export function CVManager() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [activeTab, setActiveTab] = React.useState<"ats" | "editor" | "versions">("editor");
   const [cvData, setCvData] = React.useState<CVData>(defaultCVData);
   const [versions, setVersions] = React.useState<CVVersion[]>(INITIAL_VERSIONS);
@@ -116,7 +116,7 @@ export function CVManager() {
       name: versionName,
       targetRole: cvData.personal.title,
       targetCompany: "Custom",
-      updatedAt: new Date().toLocaleDateString(),
+      updatedAt: fmt.formatDate(new Date()),
       isDefault: false,
       data: JSON.parse(JSON.stringify(cvData)),
     };
@@ -137,7 +137,7 @@ export function CVManager() {
       ...ver,
       id: `ver-${crypto.randomUUID()}`,
       name: `${ver.name} (Copy)`,
-      updatedAt: new Date().toLocaleDateString(),
+      updatedAt: fmt.formatDate(new Date()),
       isDefault: false,
     };
     saveVersionsToStorage([copy, ...versions]);
@@ -428,7 +428,7 @@ export function CVManager() {
             <Button
               size="sm"
               onClick={() => {
-                const name = `Tailored for New Role (${new Date().toLocaleDateString()})`;
+                const name = `Tailored for New Role (${fmt.formatDate(new Date())})`;
                 handleSaveVersion(name);
               }}
               className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 self-start"

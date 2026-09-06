@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 
 type ApplicantStage =
   | "new"
@@ -115,7 +116,7 @@ const initialApplicants: JobApplicant[] = [
 
 export default function JobApplicantsPage() {
   const params = useParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [applicants, setApplicants] = React.useState<JobApplicant[]>(initialApplicants);
   const [search, setSearch] = React.useState("");
   const [selectedApplicant, setSelectedApplicant] = React.useState<JobApplicant | null>(null);
@@ -139,8 +140,8 @@ export default function JobApplicantsPage() {
   };
 
   const filteredApplicants = applicants.filter((a) =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
-    a.currentRole.toLowerCase().includes(search.toLowerCase())
+    localeIncludes(a.name, search, locale) ||
+    localeIncludes(a.currentRole, search, locale)
   );
 
   return (

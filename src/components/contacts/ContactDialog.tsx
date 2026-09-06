@@ -73,7 +73,7 @@ export function ContactDialog({
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <User className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            {contact ? "Edit Contact" : "Add Recruiter or Manager"}
+            {contact ? t.common.edit : t.contacts.addContact}
           </h2>
           <button
             onClick={onClose}

@@ -61,7 +61,7 @@ interface CVFormEditorProps {
 }
 
 export function CVFormEditor({ cvData, onChange, onSaveVersion }: CVFormEditorProps) {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [activeTab, setActiveTab] = React.useState<
     "personal" | "experience" | "skills" | "languages" | "education" | "gdpr"
   >("personal");
@@ -100,13 +100,13 @@ export function CVFormEditor({ cvData, onChange, onSaveVersion }: CVFormEditorPr
   };
 
   const handleOpenSaveModal = () => {
-    const defaultName = `Tailored for ${cvData.personal.title || "Role"} (${new Date().toLocaleDateString()})`;
+    const defaultName = `Tailored for ${cvData.personal.title || "Role"} (${fmt.formatDate(new Date())})`;
     setVersionNameInput(defaultName);
     setIsSaveModalOpen(true);
   };
 
   const handleConfirmSaveVersion = () => {
-    const finalName = versionNameInput.trim() || `CV Version (${new Date().toLocaleDateString()})`;
+    const finalName = versionNameInput.trim() || `CV Version (${fmt.formatDate(new Date())})`;
     onSaveVersion?.(finalName);
     setIsSaveModalOpen(false);
     setSaved(true);

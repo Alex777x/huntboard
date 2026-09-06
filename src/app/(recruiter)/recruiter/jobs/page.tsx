@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { JobDialog } from "@/components/recruiter/JobDialog";
 import { RecruiterJob } from "@/types/database";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 
 const initialJobs: RecruiterJob[] = [
   {
@@ -81,7 +82,7 @@ const initialJobs: RecruiterJob[] = [
 ];
 
 export default function RecruiterJobsPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [jobs, setJobs] = React.useState<RecruiterJob[]>(initialJobs);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "paused" | "closed">("all");
@@ -91,9 +92,9 @@ export default function RecruiterJobsPage() {
   const filteredJobs = React.useMemo(() => {
     return jobs.filter((j) => {
       const matchesSearch =
-        j.title.toLowerCase().includes(search.toLowerCase()) ||
-        j.description.toLowerCase().includes(search.toLowerCase()) ||
-        j.location.toLowerCase().includes(search.toLowerCase());
+        localeIncludes(j.title, search, locale) ||
+        localeIncludes(j.description, search, locale) ||
+        localeIncludes(j.location, search, locale);
       const matchesStatus = statusFilter === "all" ? true : j.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -262,7 +263,7 @@ export default function RecruiterJobsPage() {
                   </span>
                   <span>•</span>
                   <span className="text-slate-700 dark:text-slate-300 font-medium">
-                    ${(job.salary_min! / 1000).toFixed(0)}k - ${(job.salary_max! / 1000).toFixed(0)}k {job.salary_currency}
+                    {fmt.formatSalaryCompact(job.salary_min, job.salary_max, job.salary_currency)}
                   </span>
                 </div>
               </div>

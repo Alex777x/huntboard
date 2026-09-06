@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FeedbackTicket } from "@/types/feedback";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 
 const demoTickets: FeedbackTicket[] = [
   {
@@ -58,7 +59,7 @@ const demoTickets: FeedbackTicket[] = [
 ];
 
 export default function AdminFeedbackPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [tickets, setTickets] = React.useState<FeedbackTicket[]>(demoTickets);
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "feature" | "bug" | "general">("all");
@@ -77,10 +78,10 @@ export default function AdminFeedbackPage() {
 
   const filtered = tickets.filter((tk) => {
     const matchesSearch =
-      tk.title.toLowerCase().includes(search.toLowerCase()) ||
-      tk.description.toLowerCase().includes(search.toLowerCase()) ||
-      tk.userEmail.toLowerCase().includes(search.toLowerCase()) ||
-      tk.userName.toLowerCase().includes(search.toLowerCase());
+      localeIncludes(tk.title, search, locale) ||
+      localeIncludes(tk.description, search, locale) ||
+      localeIncludes(tk.userEmail, search, locale) ||
+      localeIncludes(tk.userName, search, locale);
     const matchesType = typeFilter === "all" ? true : tk.type === typeFilter;
     return matchesSearch && matchesType;
   });

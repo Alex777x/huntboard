@@ -37,6 +37,7 @@ import { ApplicationDialog } from "@/components/applications/ApplicationDialog";
 import { JobUrlImportDialog } from "@/components/applications/JobUrlImportDialog";
 import { Application, ApplicationStatus } from "@/types/database";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 
 const columnIds: ApplicationStatus[] = [
   "wishlist",
@@ -211,7 +212,7 @@ const initialApplications: Application[] = [
 ];
 
 export function ApplicationBoard() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [applications, setApplications] = React.useState<Application[]>(initialApplications);
   const [viewMode, setViewMode] = React.useState<"kanban" | "table">("kanban");
   const [search, setSearch] = React.useState("");
@@ -244,14 +245,13 @@ export function ApplicationBoard() {
 
   const filteredApplications = React.useMemo(() => {
     if (!search.trim()) return applications;
-    const query = search.toLowerCase();
     return applications.filter(
       (a) =>
-        a.job_title.toLowerCase().includes(query) ||
-        (a.company_id && a.company_id.toLowerCase().includes(query)) ||
-        (a.notes && a.notes.toLowerCase().includes(query))
+        localeIncludes(a.job_title, search, locale) ||
+        (a.company_id && localeIncludes(a.company_id, search, locale)) ||
+        (a.notes && localeIncludes(a.notes, search, locale))
     );
-  }, [applications, search]);
+  }, [applications, search, locale]);
 
   const groupedApplications = React.useMemo(() => {
     const groups = {} as Record<string, Application[]>;
@@ -526,20 +526,20 @@ export function ApplicationBoard() {
                       </Badge>
                     </td>
                     <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-200">
-                      ${(((app.salary_max || app.salary_min || 140000)) / 1000).toFixed(0)}k / yr
+                      {fmt.formatSalaryCompact(app.salary_min || 140000, app.salary_max, app.salary_currency || "USD")}
                     </td>
-                    <td className="p-3.5 text-slate-500 capitalize">{app.work_format || "Remote"}</td>
+                    <td className="p-3.5 text-slate-500 capitalize">{app.work_format === "remote" ? t.common.remote : app.work_format === "hybrid" ? t.common.hybrid : app.work_format === "onsite" ? t.common.onsite : app.work_format || t.common.remote}</td>
                     <td className="p-3.5">
                       {app.ats_score ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                           <Sparkles className="h-3 w-3" />
-                          {app.ats_score.score}%
+                          {fmt.formatPercent(app.ats_score.score, 0)}
                         </span>
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td className="p-3.5 text-slate-500 dark:text-slate-400">{app.applied_at || "—"}</td>
+                    <td className="p-3.5 text-slate-500 dark:text-slate-400">{app.applied_at ? fmt.formatDate(app.applied_at) : "—"}</td>
                     <td className="p-3.5 pr-5 text-right">
                       <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-white">
                         {t.common.edit}

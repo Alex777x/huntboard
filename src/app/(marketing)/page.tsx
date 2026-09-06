@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
 import {
@@ -14,8 +16,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 export default function LandingPage() {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-indigo-500/30 selection:text-indigo-200">
       {/* Navigation */}
@@ -35,12 +39,12 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <Link href="/dashboard">
             <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white">
-              Live Demo
+              {t.nav.dashboard}
             </Button>
           </Link>
           <Link href="/dashboard">
             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/25">
-              Launch App <ArrowRight className="h-4 w-4 ml-1" />
+              {t.landing.getStarted} <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </Link>
         </div>
@@ -51,29 +55,26 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl text-center space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-medium text-indigo-300 backdrop-blur-md">
             <Sparkles className="h-4 w-4 text-indigo-400" />
-            <span>Modern Job Search Hub with In-Platform AI</span>
+            <span>{t.nav.jobSearchPlatform}</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
-            Take full control of your{" "}
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              career journey.
-            </span>
+            {t.landing.heroTitle}
           </h1>
 
           <p className="mx-auto max-w-2xl text-base sm:text-lg text-slate-400 leading-relaxed">
-            Organize every application on interactive Kanban boards, test and score your CV with tailored ATS AI models, track interview timelines, and connect directly with verified recruiters.
+            {t.landing.heroSubtitle}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <Link href="/dashboard">
               <Button size="lg" className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-90 text-white shadow-xl shadow-indigo-500/25 px-8 text-base">
-                Get Started Free <ArrowRight className="h-5 w-5 ml-2" />
+                {t.landing.getStarted} <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
             <Link href="/community">
               <Button size="lg" variant="outline" className="border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200">
-                Browse Community Board
+                {t.nav.community}
               </Button>
             </Link>
           </div>
@@ -84,9 +85,9 @@ export default function LandingPage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4">
                 <Kanban className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-semibold text-white">Visual Kanban Board</h3>
+              <h3 className="text-sm font-semibold text-white">{t.nav.applications}</h3>
               <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-                Drag-and-drop status management with timelines and deadline alerts.
+                {t.dashboard.kanbanCardTitle}
               </p>
             </div>
 
@@ -94,9 +95,9 @@ export default function LandingPage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 mb-4">
                 <FileCheck2 className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-semibold text-white">ATS Score & AI Tuning</h3>
+              <h3 className="text-sm font-semibold text-white">{t.landing.feature1Title}</h3>
               <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-                Check CV keyword match against real vacancy descriptions with BYO AI keys.
+                {t.landing.feature1Desc}
               </p>
             </div>
 
@@ -104,9 +105,9 @@ export default function LandingPage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 mb-4">
                 <Users2 className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-semibold text-white">Two-Sided Network</h3>
+              <h3 className="text-sm font-semibold text-white">{t.nav.recruiterPortal}</h3>
               <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-                Receive direct job invites from verified recruiters without public profile exposure.
+                {t.nav.invites}
               </p>
             </div>
 
@@ -114,9 +115,9 @@ export default function LandingPage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-4">
                 <BarChart3 className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-semibold text-white">Funnel & Analytics</h3>
+              <h3 className="text-sm font-semibold text-white">{t.dashboard.funnelTitle}</h3>
               <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-                Monitor response rates, conversion timelines, and source effectiveness.
+                {t.dashboard.interviewRate}
               </p>
             </div>
           </div>

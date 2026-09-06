@@ -12,10 +12,12 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/components/providers/I18nProvider";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
 
@@ -54,7 +56,7 @@ export default function LoginPage() {
             </span>
           </Link>
           <p className="text-xs text-slate-400">
-            Sign in to access your AI-powered career pipeline
+            {t.auth.login}
           </p>
         </div>
 
@@ -84,14 +86,14 @@ export default function LoginPage() {
                   d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.93 6.72-4.93z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{t.auth.login}</span>
             </Button>
           </div>
 
           <div className="relative flex items-center justify-center">
             <span className="w-full border-t border-slate-800" />
             <span className="bg-slate-900 px-3 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              Or Fast Demo Preview
+              {t.nav.dashboard}
             </span>
             <span className="w-full border-t border-slate-800" />
           </div>
@@ -104,7 +106,7 @@ export default function LoginPage() {
               size="sm"
               className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-indigo-500/40 bg-slate-950/60"
             >
-              <span>Explore as Job Seeker</span>
+              <span>{t.auth.seekerRole}</span>
               <ArrowRight className="h-3.5 w-3.5 text-indigo-400" />
             </Button>
 
@@ -114,16 +116,16 @@ export default function LoginPage() {
               size="sm"
               className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-purple-500/40 bg-slate-950/60"
             >
-              <span>Explore as Platform Admin</span>
+              <span>{t.nav.adminMode}</span>
               <Lock className="h-3.5 w-3.5 text-purple-400" />
             </Button>
           </div>
 
           {/* Footer note */}
           <p className="text-[11px] text-center text-slate-500">
-            Don&apos;t have an account yet?{" "}
+            {" "}
             <Link href="/register" className="text-indigo-400 hover:underline font-semibold">
-              Select your role & Register
+              {t.auth.register}
             </Link>
           </p>
         </Card>

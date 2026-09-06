@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Application } from "@/types/database";
 import { safeHref } from "@/lib/utils";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 interface KanbanCardProps {
   application: Application;
@@ -23,6 +24,7 @@ interface KanbanCardProps {
 }
 
 export function KanbanCard({ application, onEdit }: KanbanCardProps) {
+  const { t, locale, fmt } = useI18n();
   const {
     attributes,
     listeners,
@@ -84,7 +86,7 @@ export function KanbanCard({ application, onEdit }: KanbanCardProps) {
           {atsScore != null && (
             <div className="flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
               <Sparkles className="h-2.5 w-2.5" />
-              <span>{atsScore}%</span>
+              <span>{fmt.formatPercent(atsScore, 0)}</span>
             </div>
           )}
         </div>
@@ -98,10 +100,10 @@ export function KanbanCard({ application, onEdit }: KanbanCardProps) {
         <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
           <span className="font-medium text-slate-700 dark:text-slate-300">
             {application.salary_min && application.salary_max
-              ? `$${(application.salary_min / 1000).toFixed(0)}k - $${(application.salary_max / 1000).toFixed(0)}k`
+              ? fmt.formatSalaryCompact(application.salary_min, application.salary_max, application.salary_currency || "USD")
               : application.salary_min
-              ? `$${(application.salary_min / 1000).toFixed(0)}k+`
-              : "Salary unlisted"}
+              ? fmt.formatSalaryCompact(application.salary_min, null, application.salary_currency || "USD")
+              : t.applications.salaryUnlisted}
           </span>
           <span className="text-slate-400 dark:text-slate-500 truncate max-w-[90px]">
             {application.job_location || application.work_format}
@@ -128,12 +130,12 @@ export function KanbanCard({ application, onEdit }: KanbanCardProps) {
           {application.next_interview_at ? (
             <span className="font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1">
               <Calendar className="h-2.5 w-2.5" />
-              Interview
+              {t.applications.stages.interview}
             </span>
           ) : application.applied_at ? (
-            <span>Applied {application.applied_at}</span>
+            <span>{t.applications.stages.applied} {fmt.formatRelativeTime(application.applied_at)}</span>
           ) : (
-            <span className="text-slate-400 dark:text-slate-600">Wishlist</span>
+            <span className="text-slate-400 dark:text-slate-600">{t.applications.stages.wishlist}</span>
           )}
         </div>
       </Card>

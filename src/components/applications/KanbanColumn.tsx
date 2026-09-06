@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanCard } from "@/components/applications/KanbanCard";
 import { Application, ApplicationStatus } from "@/types/database";
+import { useI18n } from "@/components/providers/I18nProvider";
 
 interface KanbanColumnProps {
   id: ApplicationStatus;
@@ -28,6 +29,7 @@ export function KanbanColumn({
   onAddCard,
   onEditCard,
 }: KanbanColumnProps) {
+  const { t } = useI18n();
   const handleAdd = () => {
     if (onAddCard) onAddCard(id);
     else if (onAddClick) onAddClick(id);
@@ -83,7 +85,7 @@ export function KanbanColumn({
             onClick={handleAdd}
             className="flex h-24 cursor-pointer items-center justify-center rounded-lg border border-dashed border-slate-300 dark:border-slate-800/80 text-[11px] text-slate-400 dark:text-slate-600 hover:border-slate-400 dark:hover:border-slate-700 hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
           >
-            + Add application
+            {t.common.newApplication}
           </div>
         )}
       </div>

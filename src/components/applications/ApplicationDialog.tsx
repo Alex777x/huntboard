@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/components/providers/I18nProvider";
 import { Application, ApplicationStatus, WorkFormat, ApplicationSource } from "@/types/database";
 
 interface ApplicationDialogProps {
@@ -37,6 +38,7 @@ export function ApplicationDialog({
   onSave,
   onDelete,
 }: ApplicationDialogProps) {
+  const { t, locale, fmt } = useI18n();
   const [formData, setFormData] = React.useState<Partial<Application>>({
     job_title: "",
     company_id: "",
@@ -96,7 +98,7 @@ export function ApplicationDialog({
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Briefcase className="h-5 w-5 text-indigo-500" />
-              {application ? "Edit Application" : "New Job Application"}
+              {application ? t.common.edit : t.common.newApplication}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Track hiring stages, compensation, and interview dates
@@ -376,7 +378,7 @@ export function ApplicationDialog({
                 className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-sm"
               >
                 <Save className="h-3.5 w-3.5" />
-                <span>{application ? "Save Changes" : "Create Application"}</span>
+                <span>{application ? t.common.saveChanges : t.common.newApplication}</span>
               </Button>
             </div>
           </div>

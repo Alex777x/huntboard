@@ -20,6 +20,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { InviteCandidateDialog } from "@/components/recruiter/InviteCandidateDialog";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 
 interface TalentProfile {
   id: string;
@@ -105,7 +106,7 @@ const talentDatabase: TalentProfile[] = [
 ];
 
 export default function TalentPoolPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [search, setSearch] = React.useState("");
   const [relocationOnly, setRelocationOnly] = React.useState(false);
   const [selectedCandidate, setSelectedCandidate] = React.useState<TalentProfile | null>(null);
@@ -117,10 +118,10 @@ export default function TalentPoolPage() {
       .filter((cand) => cand.visibleToRecruiters)
       .filter((cand) => {
         const matchesSearch =
-          cand.name.toLowerCase().includes(search.toLowerCase()) ||
-          cand.currentRole.toLowerCase().includes(search.toLowerCase()) ||
-          cand.desiredRole.toLowerCase().includes(search.toLowerCase()) ||
-          cand.skills.some((s) => s.name.toLowerCase().includes(search.toLowerCase()));
+          localeIncludes(cand.name, search, locale) ||
+          localeIncludes(cand.currentRole, search, locale) ||
+          localeIncludes(cand.desiredRole, search, locale) ||
+          cand.skills.some((s) => localeIncludes(s.name, search, locale));
 
         const matchesRelocation = relocationOnly ? cand.openToRelocation : true;
 

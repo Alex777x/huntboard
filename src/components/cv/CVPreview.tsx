@@ -206,7 +206,7 @@ export function CVPreview({ data }: CVPreviewProps) {
                   <div className="flex items-baseline justify-between font-bold text-slate-950 print:text-black">
                     <span>{exp.role}</span>
                     <span className="text-right whitespace-nowrap">
-                      {exp.startDate} - {exp.current ? "Present" : exp.endDate}
+                      {exp.startDate} - {exp.current ? t.common.present : exp.endDate}
                     </span>
                   </div>
 

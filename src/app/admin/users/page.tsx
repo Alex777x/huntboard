@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 
 interface UserRecord {
   id: string;
@@ -67,14 +68,14 @@ const demoUsers: UserRecord[] = [
 ];
 
 export default function AdminUsersPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [users, setUsers] = React.useState<UserRecord[]>(demoUsers);
   const [search, setSearch] = React.useState("");
 
   const filtered = users.filter(
     (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      localeIncludes(u.name, search, locale) ||
+      localeIncludes(u.email, search, locale)
   );
 
   const toggleVerification = (id: string) => {

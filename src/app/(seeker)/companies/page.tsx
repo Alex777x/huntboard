@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CompanyDialog } from "@/components/companies/CompanyDialog";
 import { Company } from "@/types/database";
-import { safeHref } from "@/lib/utils";
+import { safeHref, localeIncludes } from "@/lib/utils";
 import { useI18n } from "@/components/providers/I18nProvider";
 
 const initialCompanies: Company[] = [
@@ -76,7 +76,7 @@ const initialCompanies: Company[] = [
 ];
 
 export default function CompaniesPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [companies, setCompanies] = React.useState<Company[]>(initialCompanies);
   const [search, setSearch] = React.useState("");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -87,9 +87,9 @@ export default function CompaniesPage() {
     const q = search.toLowerCase();
     return companies.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.industry && c.industry.toLowerCase().includes(q)) ||
-        (c.notes && c.notes.toLowerCase().includes(q))
+        localeIncludes(c.name, search, locale) ||
+        localeIncludes(c.industry, search, locale) ||
+        localeIncludes(c.notes, search, locale)
     );
   }, [companies, search]);
 

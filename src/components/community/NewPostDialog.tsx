@@ -89,7 +89,7 @@ export function NewPostDialog({ isOpen, onClose, onPostCreated, authorName = "An
               <span>{t.community.postJob}</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Help fellow candidates discover great engineering and product opportunities
+              {t.community.newPostSubtitle}
             </p>
           </div>
           <button
@@ -103,34 +103,34 @@ export function NewPostDialog({ isOpen, onClose, onPostCreated, authorName = "An
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Company Name *</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">{t.community.companyNameStar}</label>
               <Input
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Linear, Supabase"
+                placeholder={t.community.companyPlaceholder}
                 className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Job Title *</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">{t.community.jobTitleStar}</label>
               <Input
                 required
                 value={jobTitle}
                 onChange={(e) => setJobTitle(e.target.value)}
-                placeholder="e.g. Senior Frontend Engineer"
+                placeholder={t.community.jobTitlePlaceholder}
                 className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Application Link (URL)</label>
+            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">{t.community.jobUrlStar}</label>
             <Input
               type="url"
               value={jobUrl}
               onChange={(e) => setJobUrl(e.target.value)}
-              placeholder="https://company.com/careers/..."
+              placeholder={t.community.jobUrlPlaceholder}
               className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
@@ -181,7 +181,7 @@ export function NewPostDialog({ isOpen, onClose, onPostCreated, authorName = "An
                 className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100 flex-1"
               />
               <Button type="button" size="sm" onClick={handleAddTag} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs">
-                Add
+                {t.common.add}
               </Button>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-1">
@@ -203,7 +203,7 @@ export function NewPostDialog({ isOpen, onClose, onPostCreated, authorName = "An
             </Button>
             <Button type="submit" size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-md">
               <Save className="h-3.5 w-3.5" />
-              <span>Share Vacancy</span>
+              <span>{t.community.publishPost}</span>
             </Button>
           </div>
         </form>

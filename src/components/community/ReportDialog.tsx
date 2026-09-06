@@ -71,7 +71,7 @@ export function ReportDialog({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <p className="text-xs text-slate-700 dark:text-slate-300">
-              Reporting: <strong className="text-slate-900 dark:text-white">{postTitle}</strong>
+              {t.community.reportDialogFields}: <strong className="text-slate-900 dark:text-white">{postTitle}</strong>
             </p>
 
             <div className="space-y-1">

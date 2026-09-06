@@ -19,7 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
 import { Contact } from "@/types/database";
-import { safeHref } from "@/lib/utils";
+import { safeHref, localeIncludes } from "@/lib/utils";
 import { useI18n } from "@/components/providers/I18nProvider";
 
 const initialContacts: Contact[] = [
@@ -65,7 +65,7 @@ const initialContacts: Contact[] = [
 ];
 
 export default function ContactsPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [contacts, setContacts] = React.useState<Contact[]>(initialContacts);
   const [search, setSearch] = React.useState("");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -76,10 +76,10 @@ export default function ContactsPage() {
     const q = search.toLowerCase();
     return contacts.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.company_id && c.company_id.toLowerCase().includes(q)) ||
-        (c.role && c.role.toLowerCase().includes(q)) ||
-        (c.notes && c.notes.toLowerCase().includes(q))
+        localeIncludes(c.name, search, locale) ||
+        localeIncludes(c.company_id, search, locale) ||
+        localeIncludes(c.role, search, locale) ||
+        localeIncludes(c.notes, search, locale)
     );
   }, [contacts, search]);
 

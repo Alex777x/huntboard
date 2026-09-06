@@ -77,7 +77,7 @@ const initialEvents: CalendarEventItem[] = [
 ];
 
 export default function CalendarPage() {
-  const { t } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [events, setEvents] = React.useState<CalendarEventItem[]>(initialEvents);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingEvent, setEditingEvent] = React.useState<CalendarEventItem | null>(null);
@@ -254,7 +254,7 @@ export default function CalendarPage() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                     <span className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
                       <CalendarIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-purple-400" />
-                      {ev.date}
+                      {fmt.formatDate(ev.date)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5 text-slate-400" />

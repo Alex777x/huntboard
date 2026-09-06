@@ -30,12 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { localeIncludes } from "@/lib/utils";
 import { usePwa } from "@/components/pwa/PwaProvider";
 import { LATEST_CURATED_MODELS, AIProviderName, AIModelOption } from "@/lib/ai/types";
 
 // Filter out non-text, media, image, video, audio, TTS, and embedding models
-function isStrictTextLLM(id: string, displayName?: string, description?: string): boolean {
-  const text = `${id} ${displayName || ""} ${description || ""}`.toLowerCase();
+function isStrictTextLLM(id: string, displayName: string | undefined, description: string | undefined, locale: string): boolean {
+  const text = `${id} ${displayName || ""} ${description || ""}`;
 
   const blacklisted = [
     "imagen",
@@ -71,7 +72,7 @@ function isStrictTextLLM(id: string, displayName?: string, description?: string)
   ];
 
   for (const word of blacklisted) {
-    if (text.includes(word)) {
+    if (localeIncludes(text, word, locale)) {
       return false;
     }
   }
@@ -125,7 +126,7 @@ const PROVIDERS: {
 ];
 
 export default function SettingsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   // Active provider (only ONE active across the entire system)
   const [activeProvider, setActiveProvider] = React.useState<AIProviderName>("openai");
@@ -234,7 +235,7 @@ export default function SettingsPage() {
 
           // Sanitize cached list to remove any non-text models
           const sanitizedList = rawCached.filter((m) =>
-            isStrictTextLLM(m.id, m.name, m.description)
+            isStrictTextLLM(m.id, m.name, m.description, locale)
           );
 
           next[p] = {
@@ -279,7 +280,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.ok && Array.isArray(data.models) && data.models.length > 0) {
         const textOnlyModels = data.models.filter((m: AIModelOption) =>
-          isStrictTextLLM(m.id, m.name, m.description)
+          isStrictTextLLM(m.id, m.name, m.description, locale)
         );
 
         updateProviderConfig(p, {
