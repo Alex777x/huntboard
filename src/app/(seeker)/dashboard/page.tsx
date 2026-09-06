@@ -52,43 +52,52 @@ export default function SeekerDashboardPage() {
 
   React.useEffect(() => {
     async function loadDashboard() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const [appsRes, tokensRes, invitesRes] = await Promise.all([
-        supabase.from("applications").select("*").eq("profile_id", user.id),
-        supabase.from("ai_token_balance").select("tokens_remaining").eq("profile_id", user.id).single(),
-        supabase.from("invites").select("*, recruiter_job_id(*)").eq("receiver_id", user.id).eq("status", "pending").limit(1)
-      ]);
-
-      const apps = appsRes.data || [];
-      const activeApps = apps.filter(a => !['rejected', 'withdrawn', 'no_response'].includes(a.status));
-      const offers = apps.filter(a => a.status === 'offer');
-      
-      const stages = { wishlist: 0, applied: 0, phone_screen: 0, interview: 0, offer: 0 };
-      apps.forEach(a => {
-        if (stages[a.status as keyof typeof stages] !== undefined) {
-          stages[a.status as keyof typeof stages]++;
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setLoading(false);
+          return;
         }
-      });
 
-      const totalApplied = stages.applied + stages.phone_screen + stages.interview + stages.offer;
-      const totalInterviews = stages.interview + stages.offer;
-      const interviewRate = totalApplied > 0 ? (totalInterviews / totalApplied) * 100 : 0;
+        const [appsRes, tokensRes, invitesRes] = await Promise.all([
+          supabase.from("applications").select("*").eq("profile_id", user.id),
+          supabase.from("ai_token_balance").select("tokens_remaining").eq("profile_id", user.id).single(),
+          supabase.from("invites").select("*, recruiter_job_id(*)").eq("receiver_id", user.id).eq("status", "pending").limit(1)
+        ]);
 
-      const interviews = apps.filter(a => a.status === 'interview');
+        const apps: Application[] = appsRes.data || [];
+        const activeApps = apps.filter(a => !['rejected', 'withdrawn', 'no_response'].includes(a.status));
+        const offers = apps.filter(a => a.status === 'offer');
+        
+        const stages = { wishlist: 0, applied: 0, phone_screen: 0, interview: 0, offer: 0 };
+        apps.forEach(a => {
+          if (stages[a.status as keyof typeof stages] !== undefined) {
+            stages[a.status as keyof typeof stages]++;
+          }
+        });
 
-      setStats({
-        activeApplications: activeApps.length,
-        interviewRate: interviewRate,
-        offersReceived: offers.length,
-        tokens: tokensRes.data?.tokens_remaining || 0,
-        stages,
-        upcomingInterview: interviews.length > 0 ? interviews[0] : null,
-        pendingInvite: invitesRes.data?.[0] || null
-      });
-      setLoading(false);
+        const totalApplied = stages.applied + stages.phone_screen + stages.interview + stages.offer;
+        const totalInterviews = stages.interview + stages.offer;
+        const interviewRate = totalApplied > 0 ? (totalInterviews / totalApplied) * 100 : 0;
+
+        const interviews = apps.filter(a => a.status === 'interview');
+
+        setStats({
+          activeApplications: activeApps.length,
+          interviewRate: interviewRate,
+          offersReceived: offers.length,
+          tokens: tokensRes.data?.tokens_remaining || 0,
+          stages,
+          upcomingInterview: interviews.length > 0 ? interviews[0] : null,
+          pendingInvite: invitesRes.data?.[0] || null
+        });
+      } catch (e) {
+        console.error("Dashboard error:", e);
+      } finally {
+        setLoading(false);
+      }
     }
     loadDashboard();
   }, []);
