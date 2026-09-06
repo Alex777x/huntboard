@@ -47,8 +47,14 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests or browser extensions
-  if (request.method !== "GET" || !url.protocol.startsWith("http")) {
+  // Skip non-GET requests, browser extensions, or Next.js HMR/webpack dev requests
+  if (
+    request.method !== "GET" ||
+    !url.protocol.startsWith("http") ||
+    url.pathname.includes("webpack") ||
+    url.pathname.includes("hot-reload") ||
+    url.pathname.startsWith("/_next/webpack-hmr")
+  ) {
     return;
   }
 

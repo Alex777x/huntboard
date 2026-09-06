@@ -67,19 +67,27 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("appinstalled", handleAppInstalled);
 
-    // 6. Register Service Worker
+    // 6. Service Worker handling:
+    // In development mode, unregister any active SW so it doesn't intercept HMR/Fast Refresh loops.
+    // In production mode, register /sw.js for full offline caching and background push sync.
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((reg) => {
-          // Check push permission state
-          if ("Notification" in window) {
-            setPushPermission(Notification.permission);
+      if (process.env.NODE_ENV === "development") {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister();
           }
-        })
-        .catch((err) => {
-          console.warn("PWA Service Worker registration skipped:", err);
         });
+      } else {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .catch((err) => {
+            console.warn("PWA Service Worker registration skipped:", err);
+          });
+      }
+    }
+
+    if ("Notification" in window) {
+      setPushPermission(Notification.permission);
     }
 
     return () => {
@@ -118,7 +126,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Trigger test push notification via active Service Worker
+  // Trigger test push notification via active Service Worker or browser Notification API
   const sendTestPush = async () => {
     if (pushPermission !== "granted") {
       const granted = await requestPushPermission();
@@ -126,16 +134,27 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
 
     if ("serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      if (registration && "showNotification" in registration) {
-        await (registration as any).showNotification(t.pwa.testPushTitle, {
-          body: t.pwa.testPushBody,
-          icon: "/icon.svg",
-          badge: "/icon.svg",
-          vibrate: [100, 50, 100],
-          data: { url: "/calendar" },
-        });
-      }
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration && "showNotification" in registration) {
+          await (registration as any).showNotification(t.pwa.testPushTitle, {
+            body: t.pwa.testPushBody,
+            icon: "/icon.svg",
+            badge: "/icon.svg",
+            vibrate: [100, 50, 100],
+            data: { url: "/calendar" },
+          });
+          return;
+        }
+      } catch {}
+    }
+
+    // Direct Notification API fallback (dev mode / immediate display)
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(t.pwa.testPushTitle, {
+        body: t.pwa.testPushBody,
+        icon: "/icon.svg",
+      });
     }
   };
 
