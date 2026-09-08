@@ -847,6 +847,16 @@ export const translations = {
     },
     community: {
       newPostDialog: "Новый пост",
+      newPostSubtitle: "Поделитесь вакансией с сообществом",
+      companyNameStar: "Название компании *",
+      companyPlaceholder: "напр. Google, Stripe",
+      jobTitlePlaceholder: "напр. Senior Frontend Engineer",
+      jobUrlPlaceholder: "https://",
+      jobTitleStar: "Название должности *",
+      jobUrlStar: "Ссылка на вакансию *",
+      cancel: "Отмена",
+      publishPost: "Опубликовать",
+
       reportDialogFields: "Детали жалобы",
       title: "Комьюнити вакансий",
       subtitle: "Публикуйте, находите и голосуйте за проверенные вакансии от сообщества и работодателей",
@@ -1437,6 +1447,16 @@ export const translations = {
     },
     community: {
       newPostDialog: "Nowy post",
+      newPostSubtitle: "Podziel się ofertą pracy ze społecznością",
+      companyNameStar: "Nazwa firmy *",
+      companyPlaceholder: "np. Google, Stripe",
+      jobTitlePlaceholder: "np. Senior Frontend Engineer",
+      jobUrlPlaceholder: "https://",
+      jobTitleStar: "Nazwa stanowiska *",
+      jobUrlStar: "Link do oferty *",
+      cancel: "Anuluj",
+      publishPost: "Opublikuj",
+
       reportDialogFields: "Szczegóły zgłoszenia",
       title: "Społeczność ofert pracy",
       subtitle: "Odkrywaj, publikuj i głosuj na sprawdzone oferty pracy od społeczności i pracodawców",
