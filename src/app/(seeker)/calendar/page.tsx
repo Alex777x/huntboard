@@ -120,9 +120,12 @@ export default function CalendarPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !companyName) return;
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (editingEvent) {
       const updated = events.map((ev) =>
@@ -130,27 +133,83 @@ export default function CalendarPage() {
           ? { ...ev, title, companyName, type, date, time, meetUrl, interviewers, notes }
           : ev
       );
-      saveEvents(updated);
+      setEvents(updated);
+      if (user) {
+        await supabase
+          .from("events")
+          .update({
+            title,
+            company_name: companyName,
+            event_type: type,
+            event_date: date,
+            time_range: time,
+            video_link: meetUrl || null,
+            interviewers: interviewers || null,
+            notes: notes || null,
+          })
+          .eq("id", editingEvent.id);
+      }
     } else {
-      const newEv: CalendarEventItem = {
-        id: `ev-${crypto.randomUUID()}`,
+      const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+      const payload = {
+        profile_id: profileId,
+        title,
+        company_name: companyName,
+        event_type: type,
+        event_date: date,
+        time_range: time,
+        video_link: meetUrl || null,
+        interviewers: interviewers || "Hiring Team",
+        notes: notes || null,
+        status: "pending",
+      };
+
+      if (user) {
+        const { data: inserted, error } = await supabase
+          .from("events")
+          .insert(payload)
+          .select()
+          .single();
+
+        if (!error && inserted) {
+          const newEv: CalendarEventItem = {
+            id: inserted.id,
+            title: inserted.title,
+            companyName: inserted.company_name || "",
+            type: (inserted.event_type as any) || "Technical Interview",
+            date: inserted.event_date,
+            time: inserted.time_range || "",
+            meetUrl: inserted.video_link || undefined,
+            interviewers: inserted.interviewers || undefined,
+            notes: inserted.notes || undefined,
+          };
+          setEvents([newEv, ...events]);
+          setIsDialogOpen(false);
+          return;
+        }
+      }
+
+      const fallbackEv: CalendarEventItem = {
+        id: crypto.randomUUID(),
         title,
         companyName,
-        type,
+        type: type as any,
         date,
         time,
         meetUrl: meetUrl || undefined,
         interviewers: interviewers || "Hiring Team",
         notes,
       };
-      saveEvents([newEv, ...events]);
+      setEvents([fallbackEv, ...events]);
     }
     setIsDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    saveEvents(events.filter((ev) => ev.id !== id));
+  const handleDelete = async (id: string) => {
+    setEvents(events.filter((ev) => ev.id !== id));
     setIsDialogOpen(false);
+    const supabase = createClient();
+    await supabase.from("events").delete().eq("id", id);
   };
 
   const handleExportAllIcs = () => {

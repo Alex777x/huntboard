@@ -67,15 +67,25 @@ export default function CompaniesPage() {
     );
   }, [companies, search]);
 
-  const handleSave = (data: Partial<Company>) => {
+  const handleSave = async (data: Partial<Company>) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
     if (editingCompany) {
       setCompanies((prev) =>
         prev.map((c) => (c.id === editingCompany.id ? ({ ...c, ...data } as Company) : c))
       );
+      if (user) {
+        const { error } = await supabase
+          .from("companies")
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq("id", editingCompany.id);
+        if (error) console.error("Error updating company:", error);
+      }
     } else {
-      const newComp: Company = {
-        id: `comp-${crypto.randomUUID()}`,
-        profile_id: "user-1",
+      const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+      const newCompPayload = {
+        profile_id: profileId,
         name: data.name || "New Company",
         website: data.website || "",
         industry: data.industry || "",
@@ -83,16 +93,38 @@ export default function CompaniesPage() {
         location: data.location || "Remote",
         notes: data.notes || "",
         logo_url: null,
+      };
+
+      if (user) {
+        const { data: inserted, error } = await supabase
+          .from("companies")
+          .insert(newCompPayload)
+          .select()
+          .single();
+
+        if (!error && inserted) {
+          setCompanies([inserted as Company, ...companies]);
+          return;
+        }
+        if (error) console.error("Error inserting company:", error);
+      }
+
+      const fallbackComp: Company = {
+        ...newCompPayload,
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setCompanies([newComp, ...companies]);
+      setCompanies([fallbackComp, ...companies]);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setCompanies(companies.filter((c) => c.id !== id));
     setIsDialogOpen(false);
+    const supabase = createClient();
+    const { error } = await supabase.from("companies").delete().eq("id", id);
+    if (error) console.error("Error deleting company:", error);
   };
 
   return (

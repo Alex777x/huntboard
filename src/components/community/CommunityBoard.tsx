@@ -28,6 +28,7 @@ import { NewPostDialog, CommunityJobPost } from "@/components/community/NewPostD
 import { ReportDialog } from "@/components/community/ReportDialog";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { safeHref, localeIncludes } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const now = Date.now();
 
@@ -91,7 +92,10 @@ export function CommunityBoard({
     fetchData();
   }, []);
 
-  const handleVote = (postId: string, direction: "up" | "down") => {
+  const handleVote = async (postId: string, direction: "up" | "down") => {
+    let finalUp = 0;
+    let finalDown = 0;
+
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
@@ -112,25 +116,100 @@ export function CommunityBoard({
           if (direction === "down") newDown += 1;
         }
 
+        finalUp = Math.max(0, newUp);
+        finalDown = Math.max(0, newDown);
+
         return {
           ...p,
-          upvotes: Math.max(0, newUp),
-          downvotes: Math.max(0, newDown),
+          upvotes: finalUp,
+          downvotes: finalDown,
           userVote: newUserVote,
         };
       })
     );
+
+    const supabase = createClient();
+    await supabase
+      .from("community_posts")
+      .update({ upvotes: finalUp, downvotes: finalDown })
+      .eq("id", postId);
   };
 
-  const handleSaveToKanban = (post: CommunityJobPost) => {
+  const handleSaveToKanban = async (post: CommunityJobPost) => {
     setSavedPosts((prev) => ({ ...prev, [post.id]: true }));
     setToastMessage(`✓ "${post.jobTitle}" at ${post.companyName} added to your personal Kanban board!`);
     setTimeout(() => setToastMessage(""), 4000);
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("applications").insert({
+        profile_id: user.id,
+        job_title: post.jobTitle,
+        job_url: post.jobUrl || null,
+        job_description: post.description || null,
+        source: "community",
+        work_format: (post.workFormat as any) || "remote",
+        job_location: post.location || null,
+        status: "wishlist",
+        notes: `Imported from Community Post by ${post.authorName}`,
+      });
+    }
   };
 
-  const handleCreatePost = (data: Omit<CommunityJobPost, "id" | "upvotes" | "downvotes" | "postedDate">) => {
-    const newPost: CommunityJobPost = {
-      id: `post-${crypto.randomUUID()}`,
+  const handleCreatePost = async (data: Omit<CommunityJobPost, "id" | "upvotes" | "downvotes" | "postedDate">) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+    const payload = {
+      profile_id: profileId,
+      author_name: data.authorName,
+      company_name: data.companyName,
+      job_title: data.jobTitle,
+      job_url: data.jobUrl || null,
+      work_format: data.workFormat || "remote",
+      location: data.location || null,
+      description: data.description,
+      tags: data.tags || [],
+      upvotes: 1,
+      downvotes: 0,
+      user_vote: "up",
+      is_verified_recruiter: isRecruiterMode ? true : data.isVerifiedRecruiter,
+      posted_date: new Date().toISOString(),
+    };
+
+    if (user) {
+      const { data: inserted, error } = await supabase
+        .from("community_posts")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (!error && inserted) {
+        const newPost: CommunityJobPost = {
+          id: inserted.id,
+          authorName: inserted.author_name,
+          companyName: inserted.company_name,
+          jobTitle: inserted.job_title,
+          jobUrl: inserted.job_url,
+          workFormat: inserted.work_format,
+          location: inserted.location,
+          description: inserted.description,
+          tags: inserted.tags || [],
+          upvotes: inserted.upvotes || 1,
+          downvotes: inserted.downvotes || 0,
+          userVote: "up",
+          isVerifiedRecruiter: inserted.is_verified_recruiter,
+          postedDate: inserted.posted_date,
+        };
+        setPosts([newPost, ...posts]);
+        return;
+      }
+    }
+
+    const fallbackPost: CommunityJobPost = {
+      id: crypto.randomUUID(),
       ...data,
       upvotes: 1,
       downvotes: 0,
@@ -138,7 +217,7 @@ export function CommunityBoard({
       isVerifiedRecruiter: isRecruiterMode ? true : data.isVerifiedRecruiter,
       postedDate: new Date().toISOString(),
     };
-    setPosts([newPost, ...posts]);
+    setPosts([fallbackPost, ...posts]);
   };
 
   const filteredPosts = React.useMemo(() => {

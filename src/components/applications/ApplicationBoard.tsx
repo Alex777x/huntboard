@@ -163,6 +163,14 @@ export function ApplicationBoard() {
               : app
           )
         );
+        const supabase = createClient();
+        supabase
+          .from("applications")
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq("id", activeId)
+          .then(({ error }) => {
+            if (error) console.error("Failed to update status in database:", error);
+          });
       }
       return;
     }
@@ -179,6 +187,14 @@ export function ApplicationBoard() {
               : app
           )
         );
+        const supabase = createClient();
+        supabase
+          .from("applications")
+          .update({ status: overApp.status, updated_at: new Date().toISOString() })
+          .eq("id", activeId)
+          .then(({ error }) => {
+            if (error) console.error("Failed to update status in database:", error);
+          });
       } else {
         // Reorder within the same column
         setApplications((prev) => {
@@ -190,7 +206,10 @@ export function ApplicationBoard() {
     }
   };
 
-  const handleCreateOrUpdate = (data: Partial<Application>) => {
+  const handleCreateOrUpdate = async (data: Partial<Application>) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
     if (editingApp) {
       // Update
       setApplications((prev) =>
@@ -200,14 +219,21 @@ export function ApplicationBoard() {
             : a
         )
       );
+      if (user) {
+        const { error } = await supabase
+          .from("applications")
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq("id", editingApp.id);
+        if (error) console.error("Error updating application in DB:", error);
+      }
     } else {
       // Create new
-      const newApp: Application = {
-        id: `app-${crypto.randomUUID()}`,
-        profile_id: "user-1",
-        company_id: data.company_id || "New Company",
-        cv_id: null,
-        recruiter_job_id: null,
+      const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+      const newAppPayload = {
+        profile_id: profileId,
+        company_id: data.company_id || null,
+        cv_id: data.cv_id || null,
+        recruiter_job_id: data.recruiter_job_id || null,
         job_title: data.job_title || "Software Engineer",
         job_url: data.job_url || null,
         job_description: data.job_description || null,
@@ -218,7 +244,7 @@ export function ApplicationBoard() {
         job_location: data.job_location || "Remote",
         salary_min: data.salary_min || null,
         salary_max: data.salary_max || null,
-        salary_currency: "USD",
+        salary_currency: data.salary_currency || "USD",
         priority: data.priority || 3,
         notes: data.notes || null,
         cover_letter: data.cover_letter || null,
@@ -231,16 +257,39 @@ export function ApplicationBoard() {
           missing_skills: [],
           suggestions: [],
         },
+      };
+
+      if (user) {
+        const { data: inserted, error } = await supabase
+          .from("applications")
+          .insert(newAppPayload)
+          .select()
+          .single();
+
+        if (!error && inserted) {
+          setApplications((prev) => [inserted as Application, ...prev]);
+          return;
+        }
+        if (error) console.error("Error inserting application into DB:", error);
+      }
+
+      // Fallback optimistic local item if offline or unauthenticated
+      const fallbackApp: Application = {
+        ...newAppPayload,
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setApplications((prev) => [newApp, ...prev]);
+      setApplications((prev) => [fallbackApp, ...prev]);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setApplications((prev) => prev.filter((a) => a.id !== id));
     setIsDialogOpen(false);
+    const supabase = createClient();
+    const { error } = await supabase.from("applications").delete().eq("id", id);
+    if (error) console.error("Error deleting application from DB:", error);
   };
 
   const openAddModal = (status: ApplicationStatus = "wishlist") => {

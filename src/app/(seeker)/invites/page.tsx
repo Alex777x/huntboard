@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 interface SeekerInvite {
   id: string;
@@ -75,7 +76,7 @@ export default function SeekerInvitesPage() {
     fetchData();
   }, []);
 
-  const handleAccept = (invite: SeekerInvite) => {
+  const handleAccept = async (invite: SeekerInvite) => {
     setInvites((prev) =>
       prev.map((i) => (i.id === invite.id ? { ...i, status: "accepted" } : i))
     );
@@ -83,12 +84,32 @@ export default function SeekerInvitesPage() {
       `🎉 Invitation accepted! An application card for "${invite.jobTitle}" at ${invite.companyName} has been added to your Kanban pipeline.`
     );
     setTimeout(() => setToastMessage(""), 5000);
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    await supabase.from("invites").update({ status: "accepted" }).eq("id", invite.id);
+
+    if (user) {
+      await supabase.from("applications").insert({
+        profile_id: user.id,
+        job_title: invite.jobTitle,
+        status: "interview",
+        source: "referral",
+        salary_min: invite.salaryMin || null,
+        salary_max: invite.salaryMax || null,
+        salary_currency: "USD",
+        notes: `Accepted invite from ${invite.recruiterName}. Message: ${invite.message}`,
+      });
+    }
   };
 
-  const handleDecline = (id: string) => {
+  const handleDecline = async (id: string) => {
     setInvites((prev) =>
       prev.map((i) => (i.id === id ? { ...i, status: "declined" } : i))
     );
+    const supabase = createClient();
+    await supabase.from("invites").update({ status: "declined" }).eq("id", id);
   };
 
   return (

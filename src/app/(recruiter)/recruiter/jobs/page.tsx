@@ -23,6 +23,7 @@ import { JobDialog } from "@/components/recruiter/JobDialog";
 import { RecruiterJob } from "@/types/database";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RecruiterJobsPage() {
   const { t, locale, fmt } = useI18n();
@@ -68,37 +69,66 @@ export default function RecruiterJobsPage() {
     });
   }, [jobs, search, statusFilter]);
 
-  const handleSave = (data: Partial<RecruiterJob>) => {
+  const handleSave = async (data: Partial<RecruiterJob>) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
     if (editingJob) {
       setJobs((prev) =>
         prev.map((j) => (j.id === editingJob.id ? ({ ...j, ...data } as RecruiterJob) : j))
       );
+      if (user) {
+        await supabase
+          .from("recruiter_jobs")
+          .update(data)
+          .eq("id", editingJob.id);
+      }
     } else {
-      const newJob: RecruiterJob = {
-        id: `job-${crypto.randomUUID()}`,
-        recruiter_id: "rec-1",
+      const recruiterId = user?.id || "00000000-0000-0000-0000-000000000001";
+      const newJobPayload = {
+        recruiter_id: recruiterId,
         title: data.title || "Software Engineer",
-        company_name: data.company_name || "Stripe",
+        company_name: data.company_name || "Company",
         description: data.description || "",
         requirements: data.requirements || "",
         work_format: data.work_format || "remote",
         location: data.location || "Remote",
         salary_min: data.salary_min || 140000,
         salary_max: data.salary_max || 180000,
-        salary_currency: "USD",
+        salary_currency: data.salary_currency || "USD",
         status: data.status || "active",
         view_count: 0,
         published_to_community: data.published_to_community ?? true,
         applicants_count: 0,
+      };
+
+      if (user) {
+        const { data: inserted, error } = await supabase
+          .from("recruiter_jobs")
+          .insert(newJobPayload)
+          .select()
+          .single();
+
+        if (!error && inserted) {
+          setJobs([inserted as RecruiterJob, ...jobs]);
+          return;
+        }
+      }
+
+      const fallbackJob: RecruiterJob = {
+        ...newJobPayload,
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
       };
-      setJobs([newJob, ...jobs]);
+      setJobs([fallbackJob, ...jobs]);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setJobs(jobs.filter((j) => j.id !== id));
     setIsDialogOpen(false);
+    const supabase = createClient();
+    await supabase.from("recruiter_jobs").delete().eq("id", id);
   };
 
   return (

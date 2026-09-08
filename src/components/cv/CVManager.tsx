@@ -25,6 +25,7 @@ import { CVFormEditor } from "@/components/cv/CVFormEditor";
 import { defaultCVData } from "@/lib/cv/defaultCV";
 import { CVData, CVVersion } from "@/types/cv";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 const INITIAL_VERSIONS: CVVersion[] = [
   {
@@ -86,20 +87,52 @@ export function CVManager() {
     summary: "High 93% match probability with top ATS score for Java Backend engineering roles.",
   });
 
-  // Load versions from localStorage
+  // Load versions from Supabase with localStorage fallback
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem("huntboard_cv_versions");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setVersions(parsed);
+    const loadCVs = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from("cvs")
+            .select("*")
+            .eq("profile_id", user.id)
+            .order("updated_at", { ascending: false });
+
+          if (data && data.length > 0) {
+            const mapped: CVVersion[] = data.map((d) => ({
+              id: d.id,
+              name: d.name,
+              targetRole: (d.structured_data as any)?.personal?.title || "Custom Role",
+              targetCompany: (d.structured_data as any)?.targetCompany || "General",
+              updatedAt: fmt.formatDate(d.updated_at),
+              isDefault: d.is_default,
+              data: (d.structured_data as CVData) || defaultCVData,
+            }));
+            setVersions(mapped);
+            return;
+          }
         }
+      } catch (e) {
+        console.error("Error loading CVs from DB:", e);
       }
-    } catch (e) {
-      console.error("Error loading CV versions:", e);
-    }
-  }, []);
+
+      // Fallback to localStorage
+      try {
+        const raw = localStorage.getItem("huntboard_cv_versions");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setVersions(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading CV versions from localStorage:", e);
+      }
+    };
+    loadCVs();
+  }, [fmt]);
 
   const saveVersionsToStorage = (updated: CVVersion[]) => {
     setVersions(updated);
@@ -110,9 +143,31 @@ export function CVManager() {
     }
   };
 
-  const handleSaveVersion = (versionName: string) => {
+  const handleSaveVersion = async (versionName: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    let newId = `ver-${crypto.randomUUID()}`;
+    if (user) {
+      const { data: inserted, error } = await supabase
+        .from("cvs")
+        .insert({
+          profile_id: user.id,
+          name: versionName,
+          content_text: cvData.personal.summary || "",
+          structured_data: cvData,
+          is_default: versions.length === 0,
+        })
+        .select()
+        .single();
+
+      if (!error && inserted) {
+        newId = inserted.id;
+      }
+    }
+
     const newVersion: CVVersion = {
-      id: `ver-${crypto.randomUUID()}`,
+      id: newId,
       name: versionName,
       targetRole: cvData.personal.title,
       targetCompany: "Custom",
@@ -132,10 +187,30 @@ export function CVManager() {
     setActiveTab("editor");
   };
 
-  const handleDuplicateVersion = (ver: CVVersion) => {
+  const handleDuplicateVersion = async (ver: CVVersion) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    let newId = `ver-${crypto.randomUUID()}`;
+    if (user) {
+      const { data: inserted } = await supabase
+        .from("cvs")
+        .insert({
+          profile_id: user.id,
+          name: `${ver.name} (Copy)`,
+          content_text: ver.data.personal.summary || "",
+          structured_data: ver.data,
+          is_default: false,
+        })
+        .select()
+        .single();
+
+      if (inserted) newId = inserted.id;
+    }
+
     const copy: CVVersion = {
       ...ver,
-      id: `ver-${crypto.randomUUID()}`,
+      id: newId,
       name: `${ver.name} (Copy)`,
       updatedAt: fmt.formatDate(new Date()),
       isDefault: false,
@@ -143,9 +218,11 @@ export function CVManager() {
     saveVersionsToStorage([copy, ...versions]);
   };
 
-  const handleDeleteVersion = (id: string) => {
+  const handleDeleteVersion = async (id: string) => {
     const filtered = versions.filter((v) => v.id !== id);
     saveVersionsToStorage(filtered.length > 0 ? filtered : INITIAL_VERSIONS);
+    const supabase = createClient();
+    await supabase.from("cvs").delete().eq("id", id);
   };
 
   // ATS Analysis using OpenAI API

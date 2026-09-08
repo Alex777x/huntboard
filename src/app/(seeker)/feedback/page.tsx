@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FeedbackTicket } from "@/types/feedback";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 const ROADMAP_PHASES = [
   {
@@ -105,9 +106,27 @@ export default function FeedbackPage() {
   const [userEmail, setUserEmail] = React.useState("anatoli@example.com");
   const [isSuccess, setIsSuccess] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !description) return;
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+    const authorEmail = user?.email || userEmail || "user@huntboard.app";
+    const authorName = user?.user_metadata?.full_name || "HuntBoard User";
+
+    if (user) {
+      await supabase.from("feedback_tickets").insert({
+        profile_id: profileId,
+        ticket_type: feedbackType,
+        title,
+        description,
+        status: "open",
+        priority: severity,
+      });
+    }
 
     const newTicket: FeedbackTicket = {
       id: `fb-${Date.now()}`,
@@ -116,8 +135,8 @@ export default function FeedbackPage() {
       description,
       severity,
       status: "pending",
-      userEmail,
-      userName: "Anatoli Liaksandrou",
+      userEmail: authorEmail,
+      userName: authorName,
       createdAt: t.common.justNow,
       upvotes: 1,
     };

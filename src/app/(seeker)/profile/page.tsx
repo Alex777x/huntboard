@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 interface SkillItem {
   name: string;
@@ -54,6 +55,34 @@ export default function ProfilePage() {
   const [newSkillLevel, setNewSkillLevel] = React.useState<SkillItem["level"]>("Senior");
   const [saved, setSaved] = React.useState(false);
 
+  React.useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+        if (data && !error) {
+          if (data.full_name) setFullName(data.full_name);
+          if (data.current_role) setCurrentRole(data.current_role);
+          if (data.desired_role) setDesiredRole(data.desired_role);
+          if (data.location) setLocation(data.location);
+          if (typeof data.open_to_relocation === "boolean") setOpenToRelocation(data.open_to_relocation);
+          if (typeof data.visible_to_recruiters === "boolean") setVisibleToRecruiters(data.visible_to_recruiters);
+          if (data.linkedin_url) setLinkedinUrl(data.linkedin_url);
+          if (data.github_url) setGithubUrl(data.github_url);
+          if (data.portfolio_url) setPortfolioUrl(data.portfolio_url);
+          if (Array.isArray(data.skills) && data.skills.length > 0) {
+            setSkills(data.skills as SkillItem[]);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading profile from DB:", e);
+      }
+    };
+    loadProfile();
+  }, []);
+
   const handleAddSkill = () => {
     if (!newSkillName.trim()) return;
     setSkills([...skills, { name: newSkillName.trim(), level: newSkillLevel }]);
@@ -64,8 +93,30 @@ export default function ProfilePage() {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaved(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("profiles").upsert({
+          id: user.id,
+          full_name: fullName,
+          current_role: currentRole,
+          desired_role: desiredRole,
+          location,
+          open_to_relocation: openToRelocation,
+          visible_to_recruiters: visibleToRecruiters,
+          linkedin_url: linkedinUrl,
+          github_url: githubUrl,
+          portfolio_url: portfolioUrl,
+          skills,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.error("Error saving profile to DB:", e);
+    }
     setTimeout(() => setSaved(false), 2000);
   };
 

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 interface CandidateRecord {
   id: string;
@@ -39,10 +40,10 @@ export function InviteCandidateDialog({
   const { t } = useI18n();
   const [selectedJob, setSelectedJob] = React.useState("job-1");
   const [message, setMessage] = React.useState(
-    "Hi! We came across your profile on HuntBoard and were very impressed with your background in Next.js 15, TypeScript and PostgreSQL. We would love to invite you to interview for our Senior Fullstack position at Stripe!"
+    "Hi! We came across your profile on HuntBoard and love your engineering background. We'd love to invite you for an initial chat regarding our open position."
   );
   const [sent, setSent] = React.useState(false);
-  const timerRef = React.useRef<NodeJS.Timeout>(undefined);
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
     if (candidate) {
@@ -64,6 +65,21 @@ export function InviteCandidateDialog({
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     onInviteSent?.(candidate.id, selectedJob, message);
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("invites").insert({
+          sender_id: user.id,
+          receiver_id: candidate.id,
+          message,
+          status: "pending",
+        });
+      }
+    } catch (dbErr) {
+      console.error("DB invite dispatch error:", dbErr);
+    }
 
     // Try sending Telegram notification if user configured it
     try {

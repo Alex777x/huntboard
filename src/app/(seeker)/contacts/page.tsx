@@ -70,15 +70,25 @@ export default function ContactsPage() {
     );
   }, [contacts, search]);
 
-  const handleSave = (data: Partial<Contact>) => {
+  const handleSave = async (data: Partial<Contact>) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
     if (editingContact) {
       setContacts((prev) =>
         prev.map((c) => (c.id === editingContact.id ? ({ ...c, ...data } as Contact) : c))
       );
+      if (user) {
+        const { error } = await supabase
+          .from("contacts")
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq("id", editingContact.id);
+        if (error) console.error("Error updating contact:", error);
+      }
     } else {
-      const newContact: Contact = {
-        id: `cont-${crypto.randomUUID()}`,
-        profile_id: "user-1",
+      const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+      const newContactPayload = {
+        profile_id: profileId,
         name: data.name || "New Contact",
         role: data.role || "Recruiter",
         company_id: data.company_id || null,
@@ -86,16 +96,38 @@ export default function ContactsPage() {
         phone: data.phone || null,
         linkedin_url: data.linkedin_url || null,
         notes: data.notes || null,
+      };
+
+      if (user) {
+        const { data: inserted, error } = await supabase
+          .from("contacts")
+          .insert(newContactPayload)
+          .select()
+          .single();
+
+        if (!error && inserted) {
+          setContacts([inserted as Contact, ...contacts]);
+          return;
+        }
+        if (error) console.error("Error inserting contact:", error);
+      }
+
+      const fallbackContact: Contact = {
+        ...newContactPayload,
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setContacts([newContact, ...contacts]);
+      setContacts([fallbackContact, ...contacts]);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setContacts(contacts.filter((c) => c.id !== id));
     setIsDialogOpen(false);
+    const supabase = createClient();
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    if (error) console.error("Error deleting contact:", error);
   };
 
   return (
