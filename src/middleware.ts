@@ -32,16 +32,12 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If Supabase is not configured, fail closed in production, redirect in dev
+  // If Supabase is not configured, fail closed in production, allow local preview in dev
   if (!supabaseUrl || !supabaseAnonKey) {
     if (process.env.NODE_ENV === "production") {
       return new NextResponse("Server Configuration Error: Missing Authentication Provider", { status: 503 });
     }
-    // In development without Supabase, only allow public routes
-    if (isPublicRoute(pathname)) return response;
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+    return response;
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {

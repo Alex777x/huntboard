@@ -40,7 +40,7 @@ export default function LoginPage() {
     if (role === "admin") {
       router.push("/admin/users");
     } else if (role === "recruiter") {
-      router.push("/dashboard");
+      router.push("/recruiter/jobs");
     } else {
       router.push("/dashboard");
     }
@@ -112,6 +112,16 @@ export default function LoginPage() {
             >
               <span>{t.auth.seekerRole}</span>
               <ArrowRight className="h-3.5 w-3.5 text-indigo-400" />
+            </Button>
+
+            <Button
+              onClick={() => handleGuestLogin("recruiter")}
+              variant="outline"
+              size="sm"
+              className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-emerald-500/40 bg-slate-950/60"
+            >
+              <span>{t.auth.recruiterRole}</span>
+              <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
             </Button>
 
             <Button
