@@ -2,13 +2,8 @@
 
 import * as React from "react";
 import {
-  Users,
   Search,
   ShieldCheck,
-  ShieldAlert,
-  UserCheck,
-  MoreHorizontal,
-  Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
+import * as fmt from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 interface UserRecord {
   id: string;
@@ -28,49 +25,48 @@ interface UserRecord {
   joinedDate: string;
 }
 
-const demoUsers: UserRecord[] = [
-  {
-    id: "u-1",
-    name: "Anatoli Liaksandrou",
-    email: "anatoli@example.com",
-    role: "seeker",
-    isVerified: false,
-    tokens: 150,
-    joinedDate: "Aug 20, 2026",
-  },
-  {
-    id: "u-2",
-    name: "Sarah Chen",
-    email: "sarah@supabase.com",
-    role: "recruiter",
-    isVerified: true,
-    tokens: 500,
-    joinedDate: "Aug 15, 2026",
-  },
-  {
-    id: "u-3",
-    name: "Elena Rostova",
-    email: "elena@anthropic.com",
-    role: "recruiter",
-    isVerified: true,
-    tokens: 300,
-    joinedDate: "Aug 18, 2026",
-  },
-  {
-    id: "u-4",
-    name: "Platform Admin",
-    email: "admin@huntboard.io",
-    role: "admin",
-    isVerified: true,
-    tokens: 9999,
-    joinedDate: "Aug 1, 2026",
-  },
-];
-
 export default function AdminUsersPage() {
   const { t, locale } = useI18n();
-  const [users, setUsers] = React.useState<UserRecord[]>(demoUsers);
+  const [users, setUsers] = React.useState<UserRecord[]>([]);
   const [search, setSearch] = React.useState("");
+  const [loading, setLoading] = React.useState(true);
+  const supabase = createClient();
+
+  React.useEffect(() => {
+    async function fetchUsers() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role, verified, created_at");
+
+      const { data: tokenData } = await supabase
+        .from("ai_token_balance")
+        .select("profile_id, tokens_remaining");
+
+      if (profilesData) {
+        const mappedUsers = profilesData.map((p: any) => {
+          const t = tokenData?.find((td: any) => td.profile_id === p.id);
+          return {
+            id: p.id,
+            name: p.full_name || "Unknown",
+            email: p.email,
+            role: p.role,
+            isVerified: p.verified,
+            tokens: t ? t.tokens_remaining : 0,
+            joinedDate: fmt.formatDate(p.created_at, locale),
+          };
+        });
+        setUsers(mappedUsers);
+      }
+      setLoading(false);
+    }
+    fetchUsers();
+  }, [supabase, locale]);
 
   const filtered = users.filter(
     (u) =>
@@ -78,15 +74,20 @@ export default function AdminUsersPage() {
       localeIncludes(u.email, search, locale)
   );
 
-  const toggleVerification = (id: string) => {
+  const toggleVerification = async (id: string) => {
+    const current = users.find((u) => u.id === id)?.isVerified;
+    await supabase.from("profiles").update({ verified: !current }).eq("id", id);
     setUsers(
       users.map((u) => (u.id === id ? { ...u, isVerified: !u.isVerified } : u))
     );
   };
 
-  const changeRole = (id: string, newRole: UserRecord["role"]) => {
+  const changeRole = async (id: string, newRole: UserRecord["role"]) => {
+    await supabase.from("profiles").update({ role: newRole }).eq("id", id);
     setUsers(users.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
   };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="space-y-6 max-w-6xl">

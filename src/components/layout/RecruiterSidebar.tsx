@@ -6,20 +6,16 @@ import { usePathname } from "next/navigation";
 import {
   Briefcase,
   Users2,
-  GitBranch,
   ShieldCheck,
   Send,
   Building,
   ArrowLeftRight,
   Globe,
-  Settings,
-  Plus,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { useMobileNav } from "@/components/providers/MobileNavProvider";
 

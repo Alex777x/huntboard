@@ -3,16 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Inbox,
-  Building,
-  Briefcase,
   ShieldCheck,
   Check,
-  X,
-  Sparkles,
   ArrowRight,
   MapPin,
-  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,48 +29,53 @@ interface SeekerInvite {
 }
 
 export default function SeekerInvitesPage() {
-  const { t, locale, fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const [invites, setInvites] = React.useState<SeekerInvite[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [toastMessage, setToastMessage] = React.useState("");
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function fetchData() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setLoading(false);
         return;
       }
       
       const { data, error } = await supabase
         .from("invites")
-        .select("*")
-        .eq("type", "seeker");
+        .select(`
+          id,
+          message,
+          status,
+          created_at,
+          sender:profiles!sender_id (full_name),
+          job:recruiter_jobs!recruiter_job_id (title, company_name, location, salary_min, salary_max)
+        `)
+        .eq("receiver_id", user.id)
+        .limit(50);
         
       if (data && !error) {
         setInvites(data.map((d: any) => ({
           id: d.id,
-          recruiterName: d.recruiter_name,
-          companyName: d.company_name,
-          isVerifiedCompany: d.is_verified_company,
-          jobTitle: d.job_title,
-          location: d.location,
-          salaryMin: d.salary_min,
-          salaryMax: d.salary_max,
+          recruiterName: d.sender?.full_name || "Unknown Recruiter",
+          companyName: d.job?.company_name || "Unknown Company",
+          isVerifiedCompany: true,
+          jobTitle: d.job?.title || "Unknown Job",
+          location: d.job?.location || "Remote",
+          salaryMin: d.job?.salary_min || 0,
+          salaryMax: d.job?.salary_max || 0,
           message: d.message,
-          date: d.date,
+          date: new Date(d.created_at).toLocaleDateString(),
           status: d.status,
         })));
       }
-      setLoading(false);
     }
     fetchData();
-  }, []);
+  }, [supabase]);
 
   const handleAccept = async (invite: SeekerInvite) => {
+    const previousInvites = invites;
     setInvites((prev) =>
       prev.map((i) => (i.id === invite.id ? { ...i, status: "accepted" } : i))
     );
@@ -85,10 +84,14 @@ export default function SeekerInvitesPage() {
     );
     setTimeout(() => setToastMessage(""), 5000);
 
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    await supabase.from("invites").update({ status: "accepted" }).eq("id", invite.id);
+    const { error } = await supabase.from("invites").update({ status: "accepted" }).eq("id", invite.id);
+
+    if (error) {
+      setInvites(previousInvites);
+      return;
+    }
 
     if (user) {
       await supabase.from("applications").insert({
@@ -105,11 +108,14 @@ export default function SeekerInvitesPage() {
   };
 
   const handleDecline = async (id: string) => {
+    const previousInvites = invites;
     setInvites((prev) =>
       prev.map((i) => (i.id === id ? { ...i, status: "declined" } : i))
     );
-    const supabase = createClient();
-    await supabase.from("invites").update({ status: "declined" }).eq("id", id);
+    const { error } = await supabase.from("invites").update({ status: "declined" }).eq("id", id);
+    if (error) {
+      setInvites(previousInvites);
+    }
   };
 
   return (

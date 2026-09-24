@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPublicRoute, PUBLIC_ROUTES, PUBLIC_PREFIXES } from "./middleware";
+import { isPublicRoute, PUBLIC_PREFIXES } from "./middleware";
 
 describe("Middleware Route Protection & Auth Rules", () => {
   it("allows designated public pages without authentication", () => {

@@ -9,7 +9,6 @@ import {
   Coins,
   Flag,
   ArrowLeft,
-  Briefcase,
   Menu,
   X,
 } from "lucide-react";

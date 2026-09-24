@@ -3,12 +3,7 @@
 import * as React from "react";
 import {
   X,
-  Plus,
-  Building,
-  Briefcase,
-  Link as LinkIcon,
   Globe,
-  MapPin,
   Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

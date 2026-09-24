@@ -33,8 +33,8 @@ function toIntlLocale(locale: Locale): string {
 
 const I18nContext = React.createContext<I18nContextType | undefined>(undefined);
 
-function getInitialLocale(): Locale {
-  if (typeof window === "undefined") return "en";
+function getInitialLocale(fallback: Locale = "en"): Locale {
+  if (typeof window === "undefined") return fallback;
   try {
     const saved = localStorage.getItem("huntboard_locale") as Locale;
     if (saved && (saved === "en" || saved === "ru" || saved === "pl")) {
@@ -43,7 +43,7 @@ function getInitialLocale(): Locale {
   } catch {
     // localStorage may not be available (SSR, privacy mode)
   }
-  return "en";
+  return fallback;
 }
 
 function createFormatters(locale: Locale): I18nFormatters {
@@ -59,16 +59,23 @@ function createFormatters(locale: Locale): I18nFormatters {
 
 const defaultFormatters = createFormatters("en");
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = React.useState<Locale>("en");
+export function I18nProvider({
+  children,
+  initialLocale = "en",
+}: {
+  children: React.ReactNode;
+  initialLocale?: Locale;
+}) {
+  const [locale, setLocaleState] = React.useState<Locale>(initialLocale);
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
-    setLocaleState(getInitialLocale());
+    const saved = getInitialLocale(initialLocale);
+    setLocaleState(saved);
     setMounted(true);
-  }, []);
+  }, [initialLocale]);
 
-  const setLocale = (newLocale: Locale) => {
+  const setLocale = React.useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
     try {
       localStorage.setItem("huntboard_locale", newLocale);
@@ -76,23 +83,19 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Silently fail if storage is unavailable
     }
-  };
+  }, []);
 
-  const t: TranslationType = (translations[locale] || translations.en) as TranslationType;
-  const fmt = React.useMemo(() => createFormatters(locale), [locale]);
+  const activeLocale = mounted ? locale : initialLocale;
+  const t: TranslationType = (translations[activeLocale] || translations.en) as TranslationType;
+  const fmt = React.useMemo(() => createFormatters(activeLocale), [activeLocale]);
 
-  // Suppress hydration mismatch by rendering children only after mount
-  // This prevents SSR "en" vs client "de" flash
-  if (!mounted) {
-    return (
-      <I18nContext.Provider value={{ locale: "en", setLocale, t: translations.en as TranslationType, fmt: defaultFormatters }}>
-        {children}
-      </I18nContext.Provider>
-    );
-  }
+  const contextValue = React.useMemo(
+    () => ({ locale: activeLocale, setLocale, t, fmt }),
+    [activeLocale, setLocale, t, fmt]
+  );
 
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t, fmt }}>
+    <I18nContext.Provider value={contextValue}>
       {children}
     </I18nContext.Provider>
   );

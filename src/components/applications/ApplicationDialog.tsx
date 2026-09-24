@@ -8,16 +8,13 @@ import {
   Link as LinkIcon,
   DollarSign,
   MapPin,
-  Calendar,
   Star,
   Sparkles,
-  FileText,
   Save,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { Application, ApplicationStatus, WorkFormat, ApplicationSource } from "@/types/database";
 
@@ -38,7 +35,7 @@ export function ApplicationDialog({
   onSave,
   onDelete,
 }: ApplicationDialogProps) {
-  const { t, locale, fmt } = useI18n();
+  const { t } = useI18n();
   const [formData, setFormData] = React.useState<Partial<Application>>({
     job_title: "",
     company_id: "",

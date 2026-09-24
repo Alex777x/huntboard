@@ -13,7 +13,7 @@ import {
 import { useI18n } from "@/components/providers/I18nProvider";
 
 export function ThemeToggle() {
-  const { setTheme, theme } = useTheme();
+  const { setTheme } = useTheme();
   const { t } = useI18n();
 
   return (

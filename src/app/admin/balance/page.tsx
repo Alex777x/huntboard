@@ -1,28 +1,70 @@
 "use client";
 
 import * as React from "react";
-import { Coins, Plus, Sparkles, Check, ArrowRight } from "lucide-react";
+import { Coins, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminBalancePage() {
   const { t } = useI18n();
-  const [selectedUser, setSelectedUser] = React.useState("anatoli@example.com");
+  const [users, setUsers] = React.useState<{ id: string; email: string; name: string; tokens: number }[]>([]);
+  const [selectedUserId, setSelectedUserId] = React.useState("");
+  const [loading, setLoading] = React.useState(true);
   const [tokensToAdd, setTokensToAdd] = React.useState("100");
   const [reason, setReason] = React.useState("Admin Bonus / Early Adopter Grant");
   const [successMessage, setSuccessMessage] = React.useState("");
+  const supabase = createClient();
 
-  const handleTopup = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    async function fetchData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
+      const { data: balances } = await supabase.from("ai_token_balance").select("profile_id, tokens_remaining");
+
+      if (profiles) {
+        const merged = profiles.map((p: any) => {
+          const bal = balances?.find((b: any) => b.profile_id === p.id);
+          return {
+            id: p.id,
+            email: p.email,
+            name: p.full_name || "Unknown",
+            tokens: bal ? bal.tokens_remaining : 0,
+          };
+        });
+        setUsers(merged);
+        if (merged.length > 0) setSelectedUserId(merged[0].id);
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, [supabase]);
+
+  const handleTopup = async (e: React.FormEvent) => {
     e.preventDefault();
     const count = parseInt(tokensToAdd);
-    if (!count || count <= 0) return;
+    if (!count || count <= 0 || !selectedUserId) return;
 
-    setSuccessMessage(`Successfully granted +${count} tokens to ${selectedUser}!`);
+    const userObj = users.find(u => u.id === selectedUserId);
+    if (!userObj) return;
+    
+    const currentTokens = userObj.tokens;
+    await supabase.from("ai_token_balance").upsert({ profile_id: selectedUserId, tokens_remaining: currentTokens + count });
+    
+    setUsers(users.map(u => u.id === selectedUserId ? { ...u, tokens: u.tokens + count } : u));
+
+    setSuccessMessage(`Successfully granted +${count} tokens to ${userObj.email}!`);
     setTimeout(() => setSuccessMessage(""), 3000);
   };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -52,13 +94,15 @@ export default function AdminBalancePage() {
               Select User Email *
             </label>
             <select
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
               className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
-              <option value="anatoli@example.com">Anatoli Liaksandrou (anatoli@example.com) — 150 tokens</option>
-              <option value="sarah@supabase.com">Sarah Chen (sarah@supabase.com) — 500 tokens</option>
-              <option value="elena@anthropic.com">Elena Rostova (elena@anthropic.com) — 300 tokens</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.email}) — {u.tokens} tokens
+                </option>
+              ))}
             </select>
           </div>
 

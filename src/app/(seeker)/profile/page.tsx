@@ -2,9 +2,7 @@
 
 import * as React from "react";
 import {
-  User,
   MapPin,
-  Briefcase,
   Globe,
   Linkedin,
   Github,
@@ -93,13 +91,15 @@ export default function ProfilePage() {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
+  const [saveError, setSaveError] = React.useState(false);
+
   const handleSave = async () => {
-    setSaved(true);
+    setSaveError(false);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from("profiles").upsert({
+        const { error } = await supabase.from("profiles").upsert({
           id: user.id,
           full_name: fullName,
           current_role: currentRole,
@@ -113,11 +113,20 @@ export default function ProfilePage() {
           skills,
           updated_at: new Date().toISOString(),
         });
+        if (error) {
+          console.error("Error saving profile to DB:", error);
+          setSaveError(true);
+          setTimeout(() => setSaveError(false), 3000);
+          return;
+        }
       }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       console.error("Error saving profile to DB:", e);
+      setSaveError(true);
+      setTimeout(() => setSaveError(false), 3000);
     }
-    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -141,8 +150,8 @@ export default function ProfilePage() {
           size="sm"
           className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-indigo-600/25"
         >
-          {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-          <span>{saved ? t.common.saveChanges : t.profile.saveProfile}</span>
+          {saved ? <Check className="h-4 w-4" /> : saveError ? <Trash2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+          <span>{saved ? t.common.saveChanges : saveError ? t.common.error || "Error" : t.profile.saveProfile}</span>
         </Button>
       </div>
 

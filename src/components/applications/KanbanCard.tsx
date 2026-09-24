@@ -4,16 +4,13 @@ import * as React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Building2,
   Sparkles,
-  MapPin,
   Calendar,
   Star,
   ExternalLink,
   GripVertical,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Application } from "@/types/database";
 import { safeHref } from "@/lib/utils";
 import { useI18n } from "@/components/providers/I18nProvider";
@@ -23,8 +20,8 @@ interface KanbanCardProps {
   onEdit?: (app: Application) => void;
 }
 
-export function KanbanCard({ application, onEdit }: KanbanCardProps) {
-  const { t, locale, fmt } = useI18n();
+export const KanbanCard = React.memo(function KanbanCard({ application, onEdit }: KanbanCardProps) {
+  const { t, fmt } = useI18n();
   const {
     attributes,
     listeners,
@@ -141,4 +138,4 @@ export function KanbanCard({ application, onEdit }: KanbanCardProps) {
       </Card>
     </div>
   );
-}
+});

@@ -21,7 +21,7 @@ interface KanbanColumnProps {
   onEditCard?: (app: Application) => void;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = React.memo(function KanbanColumn({
   id,
   title,
   applications,
@@ -91,4 +91,4 @@ export function KanbanColumn({
       </div>
     </div>
   );
-}
+});

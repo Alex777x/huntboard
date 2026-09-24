@@ -2,75 +2,68 @@
 
 import * as React from "react";
 import {
-  MessageSquare,
   Bug,
   Lightbulb,
-  CheckCircle2,
-  Clock,
   Search,
-  Filter,
   Sparkles,
-  Save,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FeedbackTicket } from "@/types/feedback";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
-
-const demoTickets: FeedbackTicket[] = [
-  {
-    id: "fb-1",
-    type: "feature",
-    title: "Support for custom color tags on Kanban cards",
-    description: "It would be great to define custom color codes for tags like 'High Priority', 'Referral', or 'Remote EU'.",
-    severity: "medium",
-    status: "planned",
-    userEmail: "anatoli@example.com",
-    userName: "Anatoli Liaksandrou",
-    createdAt: "Aug 24, 2026",
-    adminNotes: "Scheduled for release in next minor update.",
-  },
-  {
-    id: "fb-2",
-    type: "bug",
-    title: "ATS Scorer score bar layout on narrow mobile screens",
-    description: "On mobile screen sizes under 360px, the match percentage badge wraps awkwardly.",
-    severity: "low",
-    status: "resolved",
-    userEmail: "marek@example.com",
-    userName: "Marek K.",
-    createdAt: "Aug 22, 2026",
-    adminNotes: "Fixed in CSS media queries.",
-  },
-  {
-    id: "fb-3",
-    type: "feature",
-    title: "Direct LinkedIn Job URL autofill parser",
-    description: "Paste a LinkedIn Job URL and automatically populate job title, company, and location into the modal.",
-    severity: "high",
-    status: "in_review",
-    userEmail: "elena@example.com",
-    userName: "Elena R.",
-    createdAt: "Aug 25, 2026",
-  },
-];
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminFeedbackPage() {
   const { t, locale } = useI18n();
-  const [tickets, setTickets] = React.useState<FeedbackTicket[]>(demoTickets);
+  const [tickets, setTickets] = React.useState<FeedbackTicket[]>([]);
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "feature" | "bug" | "general">("all");
+  const [loading, setLoading] = React.useState(true);
+  const supabase = createClient();
 
-  const updateStatus = (id: string, newStatus: FeedbackTicket["status"]) => {
+  React.useEffect(() => {
+    async function fetchTickets() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("feedback_tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (data) {
+        setTickets(data.map((tk: any) => ({
+          id: tk.id,
+          type: tk.type,
+          title: tk.title,
+          description: tk.description,
+          severity: tk.severity,
+          status: tk.status,
+          userEmail: tk.user_email,
+          userName: tk.user_name,
+          createdAt: tk.created_at,
+          adminNotes: tk.admin_notes,
+        })));
+      }
+      setLoading(false);
+    }
+    fetchTickets();
+  }, [supabase]);
+
+  const updateStatus = async (id: string, newStatus: FeedbackTicket["status"]) => {
+    await supabase.from("feedback_tickets").update({ status: newStatus }).eq("id", id);
     setTickets(
       tickets.map((tk) => (tk.id === id ? { ...tk, status: newStatus } : tk))
     );
   };
 
-  const updateNotes = (id: string, notes: string) => {
+  const updateNotes = async (id: string, notes: string) => {
+    await supabase.from("feedback_tickets").update({ admin_notes: notes }).eq("id", id);
     setTickets(
       tickets.map((tk) => (tk.id === id ? { ...tk, adminNotes: notes } : tk))
     );
@@ -85,6 +78,8 @@ export default function AdminFeedbackPage() {
     const matchesType = typeFilter === "all" ? true : tk.type === typeFilter;
     return matchesSearch && matchesType;
   });
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="space-y-6 max-w-6xl">

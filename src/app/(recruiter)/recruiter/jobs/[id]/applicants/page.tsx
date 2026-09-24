@@ -5,21 +5,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
-  Users2,
   Sparkles,
   Search,
-  Filter,
-  CheckCircle2,
-  XCircle,
   FileText,
   MessageSquare,
-  Building,
-  Briefcase,
-  Star,
-  ChevronRight,
   X,
-  Clock,
-  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +46,7 @@ export default function JobApplicantsPage() {
     React.useState<JobApplicant | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [jobTitle, setJobTitle] = React.useState("Loading...");
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function loadData() {
@@ -119,7 +109,7 @@ export default function JobApplicantsPage() {
       setLoading(false);
     }
     loadData();
-  }, [params.id, supabase]);
+  }, [params.id]);
 
   const pipelineStages: { id: ApplicantStage; title: string; color: string }[] =
     [

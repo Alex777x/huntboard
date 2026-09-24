@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Flag, AlertTriangle, Check } from "lucide-react";
+import { X, Flag, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/I18nProvider";
 

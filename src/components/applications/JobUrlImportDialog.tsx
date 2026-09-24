@@ -5,12 +5,7 @@ import {
   X,
   Link as LinkIcon,
   Sparkles,
-  Check,
-  Building,
-  Briefcase,
   Loader2,
-  ArrowRight,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

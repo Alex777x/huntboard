@@ -10,11 +10,6 @@ import {
   Clock,
   Sparkles,
   Send,
-  AlertCircle,
-  ArrowUpRight,
-  Filter,
-  Puzzle,
-  Calendar,
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,43 +52,39 @@ const ROADMAP_PHASES = [
 ];
 
 export default function FeedbackPage() {
-  const { t, locale, fmt } = useI18n();
+  const { t } = useI18n();
   const [tickets, setTickets] = React.useState<FeedbackTicket[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"roadmap" | "form">("roadmap");
 
   React.useEffect(() => {
     async function fetchData() {
-      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setLoading(false);
         return;
       }
       
       const { data, error } = await supabase
         .from("feedback_tickets")
-        .select("*")
+        .select("*").limit(50)
         .order("created_at", { ascending: false });
         
       if (data && !error) {
         setTickets(data.map((d: any) => ({
           id: d.id,
-          type: d.type as any,
+          type: d.ticket_type as any,
           title: d.title,
           description: d.description || "",
-          severity: d.severity as any,
+          severity: d.priority as any,
           status: d.status as any,
-          userEmail: d.user_email || "",
-          userName: d.user_name || "",
+          userEmail: "",
+          userName: "",
           createdAt: new Date(d.created_at).toLocaleDateString(),
           upvotes: d.upvotes || 0,
           adminNotes: d.admin_notes || "",
         })));
       }
-      setLoading(false);
     }
     fetchData();
   }, []);

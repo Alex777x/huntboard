@@ -3,21 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Globe,
   ArrowBigUp,
   ArrowBigDown,
-  Sparkles,
   ExternalLink,
   Plus,
   Search,
-  Filter,
   ShieldCheck,
   Bookmark,
   Check,
   Flag,
-  Share2,
   MapPin,
-  Building,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,8 +25,6 @@ import { useI18n } from "@/components/providers/I18nProvider";
 import { safeHref, localeIncludes } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
-const now = Date.now();
-
 interface CommunityBoardProps {
   isRecruiterMode?: boolean;
   defaultAuthorName?: string;
@@ -43,11 +36,11 @@ export function CommunityBoard({
 }: CommunityBoardProps) {
   const { t, locale, fmt } = useI18n();
   const [posts, setPosts] = React.useState<CommunityJobPost[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [filterVerifiedOnly, setFilterVerifiedOnly] = React.useState(false);
   const [savedPosts, setSavedPosts] = React.useState<Record<string, boolean>>({});
   const [toastMessage, setToastMessage] = React.useState("");
+  const supabase = React.useMemo(() => createClient(), []);
 
   // Modals
   const [isNewPostOpen, setIsNewPostOpen] = React.useState(false);
@@ -55,26 +48,27 @@ export function CommunityBoard({
 
   React.useEffect(() => {
     async function fetchData() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setLoading(false);
         return;
       }
       
       const { data, error } = await supabase
         .from("community_posts")
-        .select("*")
-        .order("posted_date", { ascending: false });
+        .select(`
+          *,
+          author:profiles!author_id (full_name, role)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(50);
         
       if (data && !error) {
         setPosts(data.map((d: any) => ({
           id: d.id,
-          authorName: d.author_name,
+          authorName: d.author?.full_name || "Unknown Author",
           companyName: d.company_name,
-          jobTitle: d.job_title,
+          jobTitle: d.title,
           jobUrl: d.job_url,
           workFormat: d.work_format,
           location: d.location,
@@ -82,19 +76,20 @@ export function CommunityBoard({
           tags: d.tags || [],
           upvotes: d.upvotes || 0,
           downvotes: d.downvotes || 0,
-          userVote: d.user_vote,
-          isVerifiedRecruiter: d.is_verified_recruiter,
-          postedDate: d.posted_date,
+          userVote: null,
+          isVerifiedRecruiter: d.author?.role === "recruiter",
+          postedDate: d.created_at,
         })));
       }
-      setLoading(false);
     }
     fetchData();
-  }, []);
+  }, [supabase]);
 
   const handleVote = async (postId: string, direction: "up" | "down") => {
     let finalUp = 0;
     let finalDown = 0;
+    let finalUserVote: "up" | "down" | null = null;
+    const previousPosts = posts;
 
     setPosts((prev) =>
       prev.map((p) => {
@@ -118,6 +113,7 @@ export function CommunityBoard({
 
         finalUp = Math.max(0, newUp);
         finalDown = Math.max(0, newDown);
+        finalUserVote = newUserVote;
 
         return {
           ...p,
@@ -128,11 +124,34 @@ export function CommunityBoard({
       })
     );
 
-    const supabase = createClient();
-    await supabase
-      .from("community_posts")
-      .update({ upvotes: finalUp, downvotes: finalDown })
-      .eq("id", postId);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      if (finalUserVote === null) {
+        // Remove vote
+        const { error } = await supabase
+          .from("community_votes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id);
+        if (error) {
+          console.error("Failed to remove vote:", error);
+          setPosts(previousPosts);
+        }
+      } else {
+        // Upsert vote
+        const { error } = await supabase
+          .from("community_votes")
+          .upsert({
+            post_id: postId,
+            user_id: user.id,
+            is_upvote: finalUserVote === "up"
+          }, { onConflict: "post_id,user_id" });
+        if (error) {
+          console.error("Failed to vote:", error);
+          setPosts(previousPosts);
+        }
+      }
+    }
   };
 
   const handleSaveToKanban = async (post: CommunityJobPost) => {
@@ -140,7 +159,6 @@ export function CommunityBoard({
     setToastMessage(`✓ "${post.jobTitle}" at ${post.companyName} added to your personal Kanban board!`);
     setTimeout(() => setToastMessage(""), 4000);
 
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase.from("applications").insert({
@@ -158,15 +176,13 @@ export function CommunityBoard({
   };
 
   const handleCreatePost = async (data: Omit<CommunityJobPost, "id" | "upvotes" | "downvotes" | "postedDate">) => {
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
     const payload = {
-      profile_id: profileId,
-      author_name: data.authorName,
+      author_id: profileId,
       company_name: data.companyName,
-      job_title: data.jobTitle,
+      title: data.jobTitle,
       job_url: data.jobUrl || null,
       work_format: data.workFormat || "remote",
       location: data.location || null,
@@ -174,24 +190,22 @@ export function CommunityBoard({
       tags: data.tags || [],
       upvotes: 1,
       downvotes: 0,
-      user_vote: "up",
-      is_verified_recruiter: isRecruiterMode ? true : data.isVerifiedRecruiter,
-      posted_date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
 
     if (user) {
       const { data: inserted, error } = await supabase
         .from("community_posts")
         .insert(payload)
-        .select()
+        .select(`*, author:profiles!author_id (full_name, role)`)
         .single();
 
       if (!error && inserted) {
         const newPost: CommunityJobPost = {
           id: inserted.id,
-          authorName: inserted.author_name,
+          authorName: inserted.author?.full_name || data.authorName,
           companyName: inserted.company_name,
-          jobTitle: inserted.job_title,
+          jobTitle: inserted.title,
           jobUrl: inserted.job_url,
           workFormat: inserted.work_format,
           location: inserted.location,
@@ -200,8 +214,8 @@ export function CommunityBoard({
           upvotes: inserted.upvotes || 1,
           downvotes: inserted.downvotes || 0,
           userVote: "up",
-          isVerifiedRecruiter: inserted.is_verified_recruiter,
-          postedDate: inserted.posted_date,
+          isVerifiedRecruiter: inserted.author?.role === "recruiter",
+          postedDate: inserted.created_at,
         };
         setPosts([newPost, ...posts]);
         return;
@@ -220,6 +234,23 @@ export function CommunityBoard({
     setPosts([fallbackPost, ...posts]);
   };
 
+  const handleReportSubmit = async (reason: string) => {
+    if (!reportingPost) return;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("community_reports").insert({
+        post_id: reportingPost.id,
+        reporter_id: user.id,
+        reason,
+        status: "pending"
+      });
+    }
+    setReportingPost(null);
+    setToastMessage("Report submitted successfully.");
+    setTimeout(() => setToastMessage(""), 3000);
+  };
+
   const filteredPosts = React.useMemo(() => {
     return posts.filter((p) => {
       const matchesSearch =
@@ -235,6 +266,13 @@ export function CommunityBoard({
 
   return (
     <div className="w-full space-y-6">
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 bg-slate-900 text-white text-xs px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
+          <Check className="h-4 w-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -433,6 +471,7 @@ export function CommunityBoard({
       <ReportDialog
         isOpen={!!reportingPost}
         onClose={() => setReportingPost(null)}
+        onReportSubmitted={handleReportSubmit}
         postTitle={reportingPost ? `${reportingPost.jobTitle} at ${reportingPost.companyName}` : ""}
       />
     </div>

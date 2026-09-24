@@ -2,16 +2,12 @@
 
 import * as React from "react";
 import {
-  Users2,
   Search,
   MapPin,
   Sparkles,
   Send,
-  ExternalLink,
   Shield,
-  Briefcase,
   Globe,
-  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

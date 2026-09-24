@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Printer, FileText, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Printer, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CVData } from "@/types/cv";
@@ -16,7 +16,6 @@ export function CVPreview({ data }: CVPreviewProps) {
   const { t } = useI18n();
   const documentRef = React.useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = React.useState(1);
-  const [contentHeight, setContentHeight] = React.useState(0);
 
   // A4 printable height at 96 DPI is ~1122px (297mm). With padding, content area is ~1040px
   const A4_PAGE_HEIGHT_PX = 1040;
@@ -27,7 +26,6 @@ export function CVPreview({ data }: CVPreviewProps) {
 
     const measurePages = () => {
       const scrollH = el.scrollHeight;
-      setContentHeight(scrollH);
       const calculatedPages = Math.max(1, Math.ceil((scrollH - 20) / A4_PAGE_HEIGHT_PX));
       setPageCount(calculatedPages);
     };

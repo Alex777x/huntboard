@@ -16,10 +16,8 @@ import {
   Wand2,
   Loader2,
   BookmarkPlus,
-  ArrowRight,
   RefreshCw,
   X,
-  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +59,7 @@ interface CVFormEditorProps {
 }
 
 export function CVFormEditor({ cvData, onChange, onSaveVersion }: CVFormEditorProps) {
-  const { t, locale, fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const [activeTab, setActiveTab] = React.useState<
     "personal" | "experience" | "skills" | "languages" | "education" | "gdpr"
   >("personal");

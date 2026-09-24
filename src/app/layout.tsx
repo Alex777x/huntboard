@@ -37,7 +37,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const locale = cookieStore.get("huntboard_locale")?.value || "en";
+  const rawLocale = cookieStore.get("huntboard_locale")?.value;
+  const locale = rawLocale === "ru" || rawLocale === "pl" ? rawLocale : "en";
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -51,7 +52,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <I18nProvider>
+          <I18nProvider initialLocale={locale}>
             <QueryProvider>
               <PwaProvider>
                 <MobileNavProvider>

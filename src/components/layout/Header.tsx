@@ -5,13 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Search,
-  Bell,
-  Plus,
   Globe,
-  SlidersHorizontal,
-  Sparkles,
-  UserCheck,
-  Building,
   Menu,
   Download,
 } from "lucide-react";
@@ -29,7 +23,7 @@ import { useI18n } from "@/components/providers/I18nProvider";
 import { useMobileNav } from "@/components/providers/MobileNavProvider";
 import { usePwa } from "@/components/pwa/PwaProvider";
 
-export function Header({ onNewApplication }: { onNewApplication?: () => void }) {
+export function Header() {
   const pathname = usePathname();
   const { locale, setLocale, t } = useI18n();
   const { toggle } = useMobileNav();

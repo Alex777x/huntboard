@@ -4,10 +4,6 @@ import * as React from "react";
 import {
   X,
   User,
-  Building2,
-  Mail,
-  Phone,
-  Linkedin,
   Save,
   Trash2,
 } from "lucide-react";
@@ -35,7 +31,7 @@ export function ContactDialog({
   const [formData, setFormData] = React.useState<Partial<Contact>>({
     name: "",
     role: "Technical Recruiter",
-    company_id: "Stripe",
+    company_id: "",
     email: "",
     phone: "",
     linkedin_url: "",
@@ -49,7 +45,7 @@ export function ContactDialog({
       setFormData({
         name: "",
         role: "Technical Recruiter",
-        company_id: "Stripe",
+        company_id: "",
         email: "",
         phone: "",
         linkedin_url: "",

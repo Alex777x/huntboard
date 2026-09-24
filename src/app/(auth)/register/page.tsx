@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Briefcase,
-  Users2,
   CheckCircle2,
   ArrowRight,
   ShieldCheck,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
 
 export default function RegisterPage() {

@@ -6,15 +6,9 @@ import {
   Plus,
   Clock,
   Video,
-  MapPin,
-  Building,
-  CheckCircle2,
-  AlertTriangle,
-  Send,
   X,
   Save,
   Trash2,
-  ExternalLink,
   Download,
   CalendarPlus,
 } from "lucide-react";
@@ -34,9 +28,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Event as DbEvent } from "@/types/database";
 
 export default function CalendarPage() {
-  const { t, locale, fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const [events, setEvents] = React.useState<CalendarEventItem[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingEvent, setEditingEvent] = React.useState<CalendarEventItem | null>(null);
 
@@ -46,13 +39,12 @@ export default function CalendarPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setLoading(false);
           return;
         }
 
         const { data, error } = await supabase
           .from("events")
-          .select("*")
+          .select("*").limit(100)
           .eq("profile_id", user.id)
           .order("event_date", { ascending: true });
 
@@ -73,16 +65,10 @@ export default function CalendarPage() {
         }
       } catch (err) {
         console.error("Failed to fetch events:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchEvents();
   }, []);
-
-  const saveEvents = (updated: CalendarEventItem[]) => {
-    setEvents(updated);
-  };
 
   // Form State
   const [title, setTitle] = React.useState("");

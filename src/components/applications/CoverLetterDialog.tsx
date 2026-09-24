@@ -7,13 +7,8 @@ import {
   Copy,
   Check,
   FileText,
-  Building2,
-  Briefcase,
-  Bot,
   HelpCircle,
   Loader2,
-  Layers,
-  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

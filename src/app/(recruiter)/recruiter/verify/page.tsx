@@ -6,9 +6,7 @@ import {
   Building,
   Mail,
   CheckCircle2,
-  Lock,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

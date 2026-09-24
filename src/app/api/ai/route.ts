@@ -1,54 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CVData } from "@/types/cv";
-import { LATEST_CURATED_MODELS, AIProviderName } from "@/lib/ai/types";
+import { LATEST_CURATED_MODELS, AIProviderName, isStrictTextLLM } from "@/lib/ai/types";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/security/rate-limit";
-
-// Strict filter to exclude all non-text, media, image, video, audio, TTS, embedding, and specialized models
-function isStrictTextLLM(id: string, displayName?: string, description?: string): boolean {
-  const text = `${id} ${displayName || ""} ${description || ""}`.toLowerCase();
-
-  const blacklisted = [
-    "imagen",
-    "image",
-    "veo",
-    "video",
-    "banana",
-    "nano",
-    "aqa",
-    "embedding",
-    "embed",
-    "tts",
-    "speech",
-    "audio",
-    "voice",
-    "whisper",
-    "transcribe",
-    "transcription",
-    "dall-e",
-    "sora",
-    "moderation",
-    "realtime",
-    "instruct",
-    "babbage",
-    "davinci",
-    "curie",
-    "ada",
-    "canary",
-    "robotics",
-    "vision-only",
-    "computer-use",
-    "search-preview",
-  ];
-
-  for (const word of blacklisted) {
-    if (text.includes(word)) {
-      return false;
-    }
-  }
-
-  return true;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -97,9 +51,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Job title exceeds allowed length (max 300 chars)." }, { status: 400 });
     }
 
-    // Server key fallback is only available when user provides their own key
-    // or when explicitly configured. Never expose the server key to unauthenticated users.
-    const apiKey = (clientApiKey || "").trim() || (process.env.OPENAI_API_KEY || "").trim();
+    // Only fall back to server OPENAI_API_KEY when the requested provider is 'openai'
+    const apiKey =
+      (clientApiKey || "").trim() ||
+      (provider === "openai" ? (process.env.OPENAI_API_KEY || "").trim() : "");
     const selectedModel = model === "custom" || !model ? "gpt-5.6-sol" : model;
 
     // Helper: Execute LLM Completion
@@ -107,7 +62,7 @@ export async function POST(req: NextRequest) {
       if (!apiKey) return null;
 
       if (provider === "openai") {
-        const payload: any = {
+        const payload: Record<string, unknown> = {
           model: selectedModel,
           messages: [{ role: "user", content: prompt }],
           temperature: jsonFormat ? 0.2 : 0.7,
@@ -136,10 +91,13 @@ export async function POST(req: NextRequest) {
 
       if (provider === "gemini") {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel || "gemini-3.7-flash"}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel || "gemini-3.7-flash"}:generateContent`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
             }),
@@ -255,7 +213,10 @@ export async function POST(req: NextRequest) {
 
         if (provider === "gemini") {
           const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            {
+              headers: { "x-goog-api-key": apiKey },
+            }
           );
 
           if (!res.ok) {
@@ -406,7 +367,10 @@ export async function POST(req: NextRequest) {
 
       if (provider === "gemini") {
         const testRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+          "https://generativelanguage.googleapis.com/v1beta/models",
+          {
+            headers: { "x-goog-api-key": apiKey },
+          }
         );
         if (!testRes.ok) {
           const errData = await testRes.json().catch(() => ({}));

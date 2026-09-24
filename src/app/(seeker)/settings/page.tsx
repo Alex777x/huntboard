@@ -21,7 +21,6 @@ import {
   Send,
   Puzzle,
   Bell,
-  Calendar,
   Download,
   Smartphone,
 } from "lucide-react";
@@ -30,55 +29,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { localeIncludes } from "@/lib/utils";
 import { usePwa } from "@/components/pwa/PwaProvider";
-import { LATEST_CURATED_MODELS, AIProviderName, AIModelOption } from "@/lib/ai/types";
-
-// Filter out non-text, media, image, video, audio, TTS, and embedding models
-function isStrictTextLLM(id: string, displayName: string | undefined, description: string | undefined, locale: string): boolean {
-  const text = `${id} ${displayName || ""} ${description || ""}`;
-
-  const blacklisted = [
-    "imagen",
-    "image",
-    "veo",
-    "video",
-    "banana",
-    "nano",
-    "aqa",
-    "embedding",
-    "embed",
-    "tts",
-    "speech",
-    "audio",
-    "voice",
-    "whisper",
-    "transcribe",
-    "transcription",
-    "dall-e",
-    "sora",
-    "moderation",
-    "realtime",
-    "instruct",
-    "babbage",
-    "davinci",
-    "curie",
-    "ada",
-    "canary",
-    "robotics",
-    "vision-only",
-    "computer-use",
-    "search-preview",
-  ];
-
-  for (const word of blacklisted) {
-    if (localeIncludes(text, word, locale)) {
-      return false;
-    }
-  }
-
-  return true;
-}
+import { LATEST_CURATED_MODELS, AIProviderName, AIModelOption, isStrictTextLLM } from "@/lib/ai/types";
 
 interface ProviderConfig {
   apiKey: string;
@@ -126,7 +78,7 @@ const PROVIDERS: {
 ];
 
 export default function SettingsPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
 
   // Active provider (only ONE active across the entire system)
   const [activeProvider, setActiveProvider] = React.useState<AIProviderName>("openai");
@@ -235,7 +187,7 @@ export default function SettingsPage() {
 
           // Sanitize cached list to remove any non-text models
           const sanitizedList = rawCached.filter((m) =>
-            isStrictTextLLM(m.id, m.name, m.description, locale)
+            isStrictTextLLM(m.id, m.name, m.description)
           );
 
           next[p] = {
@@ -280,7 +232,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.ok && Array.isArray(data.models) && data.models.length > 0) {
         const textOnlyModels = data.models.filter((m: AIModelOption) =>
-          isStrictTextLLM(m.id, m.name, m.description, locale)
+          isStrictTextLLM(m.id, m.name, m.description)
         );
 
         updateProviderConfig(p, {

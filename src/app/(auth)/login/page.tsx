@@ -5,16 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Briefcase,
-  Sparkles,
   ArrowRight,
-  Shield,
-  CheckCircle2,
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const { t } = useI18n();
@@ -23,12 +20,19 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    // In production with Supabase credentials:
-    // const supabase = createClient();
-    // await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: ... } });
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 800);
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: `${window.location.origin}/auth/callback` },
+        });
+        if (!error) return;
+      }
+    } catch {
+      // Fallback for local preview without OAuth configured
+    }
+    router.push("/dashboard");
   };
 
   const handleGuestLogin = (role: "seeker" | "recruiter" | "admin") => {

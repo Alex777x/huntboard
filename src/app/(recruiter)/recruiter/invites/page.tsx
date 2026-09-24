@@ -2,21 +2,16 @@
 
 import * as React from "react";
 import {
-  Send,
   CheckCircle2,
   Clock,
-  XCircle,
-  Building,
-  Briefcase,
-  User,
   Search,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 interface SentInvite {
   id: string;
@@ -32,39 +27,42 @@ interface SentInvite {
 export default function RecruiterInvitesPage() {
   const { t } = useI18n();
   const [invites, setInvites] = React.useState<SentInvite[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
 
   React.useEffect(() => {
     async function fetchData() {
-      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setLoading(false);
         return;
       }
       
       const { data, error } = await supabase
         .from("invites")
-        .select("*")
-        .eq("type", "recruiter")
-        .order("date", { ascending: false });
+        .select(`
+          id,
+          message,
+          status,
+          created_at,
+          receiver:profiles!receiver_id (full_name, current_role),
+          job:recruiter_jobs!recruiter_job_id (title, company_name)
+        `)
+        .eq("sender_id", user.id)
+        .order("created_at", { ascending: false });
         
       if (data && !error) {
         setInvites(data.map((d: any) => ({
           id: d.id,
-          candidateName: d.candidate_name,
-          candidateRole: d.candidate_role,
-          jobTitle: d.job_title,
-          companyName: d.company_name,
-          sentDate: new Date(d.date).toLocaleDateString(),
+          candidateName: d.receiver?.full_name || "Unknown Candidate",
+          candidateRole: d.receiver?.current_role || "Candidate",
+          jobTitle: d.job?.title || "Unknown Job",
+          companyName: d.job?.company_name || "Unknown Company",
+          sentDate: new Date(d.created_at).toLocaleDateString(),
           status: d.status,
           message: d.message,
         })));
       }
-      setLoading(false);
     }
     fetchData();
   }, []);

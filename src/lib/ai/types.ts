@@ -77,3 +77,53 @@ export const AI_TOKEN_COSTS = {
   interviewPrep: 8,
   moderation: 1,
 } as const;
+
+const NON_TEXT_MODEL_KEYWORDS = [
+  "imagen",
+  "image",
+  "veo",
+  "video",
+  "banana",
+  "nano",
+  "aqa",
+  "embedding",
+  "embed",
+  "tts",
+  "speech",
+  "audio",
+  "voice",
+  "whisper",
+  "transcribe",
+  "transcription",
+  "dall-e",
+  "sora",
+  "moderation",
+  "realtime",
+  "instruct",
+  "babbage",
+  "davinci",
+  "curie",
+  "ada",
+  "canary",
+  "robotics",
+  "vision-only",
+  "computer-use",
+  "search-preview",
+];
+
+/**
+ * Strict filter to exclude non-text, media, image, video, audio, TTS, embedding, and specialized models.
+ */
+export function isStrictTextLLM(
+  id: string,
+  displayName?: string,
+  description?: string
+): boolean {
+  const text = `${id} ${displayName || ""} ${description || ""}`.toLowerCase();
+  for (const word of NON_TEXT_MODEL_KEYWORDS) {
+    if (text.includes(word)) {
+      return false;
+    }
+  }
+  return true;
+}

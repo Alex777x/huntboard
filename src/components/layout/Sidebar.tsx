@@ -14,8 +14,6 @@ import {
   Settings,
   Sparkles,
   ChevronRight,
-  ShieldAlert,
-  Zap,
   MessageSquare,
   X,
 } from "lucide-react";

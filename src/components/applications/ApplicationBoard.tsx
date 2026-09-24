@@ -17,14 +17,8 @@ import {
   Kanban,
   Table as TableIcon,
   Plus,
-  Filter,
-  ArrowUpDown,
   Search,
-  MoreHorizontal,
-  Building2,
   Sparkles,
-  Calendar,
-  DollarSign,
   Link as LinkIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,11 +47,11 @@ export function ApplicationBoard() {
   const { t, locale, fmt } = useI18n();
   const [applications, setApplications] = React.useState<Application[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     const fetchApps = async () => {
       try {
-        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setLoading(false);
@@ -68,7 +62,8 @@ export function ApplicationBoard() {
           .from("applications")
           .select("*")
           .eq("profile_id", user.id)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(200);
 
         if (error) throw error;
         if (data) setApplications(data as Application[]);
@@ -156,6 +151,7 @@ export function ApplicationBoard() {
     if (isColumn) {
       const newStatus = overId as ApplicationStatus;
       if (activeApp.status !== newStatus) {
+        const previousApps = applications;
         setApplications((prev) =>
           prev.map((app) =>
             app.id === activeId
@@ -163,13 +159,15 @@ export function ApplicationBoard() {
               : app
           )
         );
-        const supabase = createClient();
         supabase
           .from("applications")
           .update({ status: newStatus, updated_at: new Date().toISOString() })
           .eq("id", activeId)
           .then(({ error }) => {
-            if (error) console.error("Failed to update status in database:", error);
+            if (error) {
+              console.error("Failed to update status in database:", error);
+              setApplications(previousApps);
+            }
           });
       }
       return;
@@ -180,6 +178,7 @@ export function ApplicationBoard() {
     if (overApp) {
       if (activeApp.status !== overApp.status) {
         // Move to new column
+        const previousApps = applications;
         setApplications((prev) =>
           prev.map((app) =>
             app.id === activeId
@@ -187,13 +186,15 @@ export function ApplicationBoard() {
               : app
           )
         );
-        const supabase = createClient();
         supabase
           .from("applications")
           .update({ status: overApp.status, updated_at: new Date().toISOString() })
           .eq("id", activeId)
           .then(({ error }) => {
-            if (error) console.error("Failed to update status in database:", error);
+            if (error) {
+              console.error("Failed to update status in database:", error);
+              setApplications(previousApps);
+            }
           });
       } else {
         // Reorder within the same column
@@ -207,7 +208,6 @@ export function ApplicationBoard() {
   };
 
   const handleCreateOrUpdate = async (data: Partial<Application>) => {
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (editingApp) {
@@ -251,12 +251,7 @@ export function ApplicationBoard() {
         applied_at: data.applied_at || new Date().toISOString().split("T")[0],
         next_interview_at: data.next_interview_at || null,
         deadline_at: null,
-        ats_score: {
-          score: Math.floor(Math.random() * 15) + 82, // Random ATS match 82-97%
-          matched_skills: ["TypeScript", "Next.js"],
-          missing_skills: [],
-          suggestions: [],
-        },
+        ats_score: null,
       };
 
       if (user) {
@@ -285,11 +280,14 @@ export function ApplicationBoard() {
   };
 
   const handleDelete = async (id: string) => {
+    const previousApps = applications;
     setApplications((prev) => prev.filter((a) => a.id !== id));
     setIsDialogOpen(false);
-    const supabase = createClient();
     const { error } = await supabase.from("applications").delete().eq("id", id);
-    if (error) console.error("Error deleting application from DB:", error);
+    if (error) {
+      console.error("Error deleting application from DB:", error);
+      setApplications(previousApps);
+    }
   };
 
   const openAddModal = (status: ApplicationStatus = "wishlist") => {
@@ -375,6 +373,9 @@ export function ApplicationBoard() {
             className="pl-8 text-xs bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800"
           />
         </div>
+        {loading && (
+          <span className="text-xs text-slate-400 animate-pulse">{t.common.loading}</span>
+        )}
       </div>
 
       {/* DND Kanban View */}
@@ -423,7 +424,14 @@ export function ApplicationBoard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
-                {filteredApplications.map((app) => (
+                {filteredApplications.map((app) => {
+                  const formatLabels: Record<string, string> = {
+                    remote: t.common.remote,
+                    hybrid: t.common.hybrid,
+                    onsite: t.common.onsite,
+                  };
+                  const workFormatLabel = formatLabels[app.work_format || ""] || app.work_format || t.common.remote;
+                  return (
                   <tr
                     key={app.id}
                     onClick={() => openEditModal(app)}
@@ -443,7 +451,7 @@ export function ApplicationBoard() {
                     <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-200">
                       {fmt.formatSalaryCompact(app.salary_min || 140000, app.salary_max, app.salary_currency || "USD")}
                     </td>
-                    <td className="p-3.5 text-slate-500 capitalize">{app.work_format === "remote" ? t.common.remote : app.work_format === "hybrid" ? t.common.hybrid : app.work_format === "onsite" ? t.common.onsite : app.work_format || t.common.remote}</td>
+                    <td className="p-3.5 text-slate-500 capitalize">{workFormatLabel}</td>
                     <td className="p-3.5">
                       {app.ats_score ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
@@ -461,7 +469,8 @@ export function ApplicationBoard() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -483,7 +492,8 @@ export function ApplicationBoard() {
         isOpen={isImportDialogOpen}
         onClose={() => setIsImportDialogOpen(false)}
         onJobImported={(newJob) => {
-          setApplications((prev) => [newJob, ...prev]);
+          setEditingApp(null);
+          handleCreateOrUpdate(newJob);
         }}
       />
     </div>

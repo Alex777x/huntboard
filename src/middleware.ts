@@ -3,8 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 
 export const PUBLIC_ROUTES = new Set(["/", "/login", "/register"]);
 export const PUBLIC_PREFIXES = [
-  "/auth",
-  "/_next",
+  "/auth/",
+  "/_next/",
   "/favicon.ico",
   "/icon.svg",
   "/manifest.webmanifest",
@@ -32,9 +32,16 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If Supabase is not configured, allow through (development mode)
+  // If Supabase is not configured, fail closed in production, redirect in dev
   if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse("Server Configuration Error: Missing Authentication Provider", { status: 503 });
+    }
+    // In development without Supabase, only allow public routes
+    if (isPublicRoute(pathname)) return response;
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -84,7 +91,11 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectResponse;
     }
   }
 
@@ -96,7 +107,11 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (profile?.role !== "recruiter" && profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectResponse;
     }
   }
 

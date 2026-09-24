@@ -4,9 +4,6 @@ import * as React from "react";
 import {
   X,
   Briefcase,
-  Building,
-  DollarSign,
-  MapPin,
   Save,
   Trash2,
 } from "lucide-react";
@@ -35,7 +32,7 @@ export function JobDialog({
   const { t } = useI18n();
   const [formData, setFormData] = React.useState<Partial<RecruiterJob>>({
     title: "",
-    company_name: "Stripe",
+    company_name: "",
     department: "Engineering",
     work_format: "remote",
     location: "Remote (EU / US)",
@@ -53,7 +50,7 @@ export function JobDialog({
     } else {
       setFormData({
         title: "",
-        company_name: "Stripe",
+        company_name: "",
         department: "Engineering",
         work_format: "remote",
         location: "Remote (EU / US)",

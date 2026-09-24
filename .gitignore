@@ -39,16 +39,26 @@ desktop.ini
 *.key
 *.cert
 credentials.json
+serviceAccountKey.json
 
-# debug logs
+# debug logs & temp files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+*.tmp
+*.temp
+*.cache
+.cache/
+*.bak
+*_old.*
+*_backup.*
+*_copy.*
 
 # local env files
 .env
+.env.*
 .env*.local
 !.env.example
 
@@ -64,4 +74,6 @@ next-env.d.ts
 .vscode/
 *.swp
 *.swo
+*.iml
+.project
 *~

@@ -25,8 +25,13 @@ export function MobileNavProvider({ children }: { children: React.ReactNode }) {
   const close = React.useCallback(() => setIsOpen(false), []);
   const toggle = React.useCallback(() => setIsOpen((prev) => !prev), []);
 
+  const value = React.useMemo(
+    () => ({ isOpen, open, close, toggle }),
+    [isOpen, open, close, toggle]
+  );
+
   return (
-    <MobileNavContext.Provider value={{ isOpen, open, close, toggle }}>
+    <MobileNavContext.Provider value={value}>
       {children}
     </MobileNavContext.Provider>
   );

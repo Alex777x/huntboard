@@ -2,15 +2,10 @@
 
 import * as React from "react";
 import {
-  Users,
   Plus,
   Search,
   Mail,
   Linkedin,
-  Building2,
-  Phone,
-  MoreHorizontal,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,9 +19,8 @@ import { useI18n } from "@/components/providers/I18nProvider";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ContactsPage() {
-  const { t, locale, fmt } = useI18n();
+  const { t, locale } = useI18n();
   const [contacts, setContacts] = React.useState<Contact[]>([]);
-  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     const fetchContacts = async () => {
@@ -34,13 +28,12 @@ export default function ContactsPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setLoading(false);
           return;
         }
 
         const { data, error } = await supabase
           .from("contacts")
-          .select("*")
+          .select("*").limit(100)
           .eq("profile_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -48,8 +41,6 @@ export default function ContactsPage() {
         if (data) setContacts(data as Contact[]);
       } catch (err) {
         console.error("Failed to fetch contacts:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchContacts();
@@ -60,7 +51,6 @@ export default function ContactsPage() {
 
   const filtered = React.useMemo(() => {
     if (!search.trim()) return contacts;
-    const q = search.toLowerCase();
     return contacts.filter(
       (c) =>
         localeIncludes(c.name, search, locale) ||
@@ -68,7 +58,7 @@ export default function ContactsPage() {
         localeIncludes(c.role, search, locale) ||
         localeIncludes(c.notes, search, locale)
     );
-  }, [contacts, search]);
+  }, [contacts, search, locale]);
 
   const handleSave = async (data: Partial<Contact>) => {
     const supabase = createClient();

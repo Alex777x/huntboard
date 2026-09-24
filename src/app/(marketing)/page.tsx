@@ -6,13 +6,10 @@ import {
   Briefcase,
   Sparkles,
   ArrowRight,
-  ShieldCheck,
-  Zap,
   BarChart3,
   Kanban,
   FileCheck2,
   Users2,
-  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

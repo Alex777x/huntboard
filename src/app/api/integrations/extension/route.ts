@@ -89,10 +89,21 @@ export async function POST(req: Request) {
             id: `app-${Date.now()}`,
             job_title: guessedTitle.charAt(0).toUpperCase() + guessedTitle.slice(1),
             company_id: guessedCompany.charAt(0).toUpperCase() + guessedCompany.slice(1),
-            stage: "applied",
-            target_salary: 145000,
-            location: "Remote",
-            applied_date: new Date().toISOString().split("T")[0],
+            job_url: url,
+            status: "applied",
+            source: parsedUrl.hostname.includes("linkedin.com")
+              ? "linkedin"
+              : parsedUrl.hostname.includes("indeed.com")
+              ? "indeed"
+              : parsedUrl.hostname.includes("glassdoor.com")
+              ? "glassdoor"
+              : "company_website",
+            work_format: "remote",
+            job_location: "Remote",
+            salary_min: 145000,
+            salary_max: null,
+            salary_currency: "USD",
+            applied_at: new Date().toISOString().split("T")[0],
             notes: `Imported from: ${url}`,
           },
         },
@@ -112,9 +123,13 @@ export async function POST(req: Request) {
       id: `app-ext-${Date.now()}`,
       job_title,
       company_id,
-      stage: stage || "applied",
-      target_salary: target_salary || 140000,
-      applied_date: new Date().toISOString().split("T")[0],
+      status: stage || "applied",
+      work_format: "remote",
+      job_location: "Remote",
+      salary_min: target_salary || 140000,
+      salary_max: null,
+      salary_currency: "USD",
+      applied_at: new Date().toISOString().split("T")[0],
       notes: notes || "",
     };
 

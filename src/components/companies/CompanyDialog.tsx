@@ -4,8 +4,6 @@ import * as React from "react";
 import {
   X,
   Building2,
-  Globe,
-  MapPin,
   Save,
   Trash2,
 } from "lucide-react";

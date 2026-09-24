@@ -2,14 +2,10 @@
 
 import * as React from "react";
 import {
-  Building2,
   Plus,
   Search,
   ExternalLink,
   MapPin,
-  Users,
-  MoreHorizontal,
-  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +18,8 @@ import { useI18n } from "@/components/providers/I18nProvider";
 import { createClient } from "@/lib/supabase/client";
 
 export default function CompaniesPage() {
-  const { t, locale, fmt } = useI18n();
+  const { t, locale } = useI18n();
   const [companies, setCompanies] = React.useState<Company[]>([]);
-  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     const fetchCompanies = async () => {
@@ -32,13 +27,12 @@ export default function CompaniesPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setLoading(false);
           return;
         }
 
         const { data, error } = await supabase
           .from("companies")
-          .select("*")
+          .select("*").limit(100)
           .eq("profile_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -46,8 +40,6 @@ export default function CompaniesPage() {
         if (data) setCompanies(data as Company[]);
       } catch (err) {
         console.error("Failed to fetch companies:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchCompanies();
@@ -58,14 +50,13 @@ export default function CompaniesPage() {
 
   const filtered = React.useMemo(() => {
     if (!search.trim()) return companies;
-    const q = search.toLowerCase();
     return companies.filter(
       (c) =>
         localeIncludes(c.name, search, locale) ||
         localeIncludes(c.industry, search, locale) ||
         localeIncludes(c.notes, search, locale)
     );
-  }, [companies, search]);
+  }, [companies, search, locale]);
 
   const handleSave = async (data: Partial<Company>) => {
     const supabase = createClient();

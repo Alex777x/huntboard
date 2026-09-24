@@ -3,16 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Briefcase,
   Plus,
   Search,
-  Eye,
   Users2,
-  GitBranch,
-  MoreHorizontal,
   MapPin,
-  DollarSign,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +22,6 @@ import { createClient } from "@/lib/supabase/client";
 export default function RecruiterJobsPage() {
   const { t, locale, fmt } = useI18n();
   const [jobs, setJobs] = React.useState<RecruiterJob[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "paused" | "closed">("all");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -36,24 +29,23 @@ export default function RecruiterJobsPage() {
 
   React.useEffect(() => {
     async function fetchData() {
-      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setLoading(false);
         return;
       }
       
       const { data, error } = await supabase
         .from("recruiter_jobs")
         .select("*")
+        .eq("recruiter_id", user.id)
+        .limit(50)
         .order("created_at", { ascending: false });
         
       if (data && !error) {
         setJobs(data as RecruiterJob[]);
       }
-      setLoading(false);
     }
     fetchData();
   }, []);
@@ -99,7 +91,6 @@ export default function RecruiterJobsPage() {
         status: data.status || "active",
         view_count: 0,
         published_to_community: data.published_to_community ?? true,
-        applicants_count: 0,
       };
 
       if (user) {
@@ -119,6 +110,7 @@ export default function RecruiterJobsPage() {
         ...newJobPayload,
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
+        applicants_count: 0,
       };
       setJobs([fallbackJob, ...jobs]);
     }

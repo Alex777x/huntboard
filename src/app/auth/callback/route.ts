@@ -12,8 +12,10 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const nextParam = searchParams.get("next") ?? "/dashboard";
-  // Prevent open redirect: only allow relative paths, block protocol-relative URLs
-  const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
+  // Prevent open redirect: only allow relative paths, block protocol-relative URLs and backslash tricks
+  const isSafeRelativePath = (path: string): boolean =>
+    path.startsWith("/") && !path.startsWith("//") && !path.includes("\\");
+  const next = isSafeRelativePath(nextParam) ? nextParam : "/dashboard";
 
   if (code) {
     const supabase = await createClient();

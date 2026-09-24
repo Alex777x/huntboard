@@ -10,16 +10,8 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
-  ArrowUpRight,
-  ChevronRight,
-  Star,
   Users2,
-  DollarSign,
-  AlertTriangle,
-  Lightbulb,
-  Building2,
   Zap,
-  ArrowRight,
   FileText,
   Globe,
   Inbox
@@ -32,7 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Application } from "@/types/database";
 
 export default function SeekerDashboardPage() {
-  const { t, locale, fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState({
     activeApplications: 0,
@@ -62,7 +54,7 @@ export default function SeekerDashboardPage() {
         }
 
         const [appsRes, tokensRes, invitesRes] = await Promise.all([
-          supabase.from("applications").select("*").eq("profile_id", user.id),
+          supabase.from("applications").select("id, status, next_interview_at, job_title, company_id, created_at").eq("profile_id", user.id),
           supabase.from("ai_token_balance").select("tokens_remaining").eq("profile_id", user.id).single(),
           supabase.from("invites").select("*, recruiter_job_id(*)").eq("receiver_id", user.id).eq("status", "pending").limit(1)
         ]);

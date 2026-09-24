@@ -4,14 +4,9 @@ import * as React from "react";
 import {
   X,
   Send,
-  Sparkles,
-  Building,
-  Briefcase,
-  User,
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -69,10 +64,11 @@ export function InviteCandidateDialog({
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (user && selectedJob) {
         await supabase.from("invites").insert({
           sender_id: user.id,
           receiver_id: candidate.id,
+          recruiter_job_id: selectedJob,
           message,
           status: "pending",
         });

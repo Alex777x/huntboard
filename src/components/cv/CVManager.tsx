@@ -5,15 +5,11 @@ import {
   Sparkles,
   Bot,
   Layers,
-  CheckCircle2,
-  AlertTriangle,
   Plus,
   Trash2,
-  BookmarkPlus,
   Clock,
   ArrowRight,
   Copy,
-  Check,
   Edit3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +51,7 @@ const INITIAL_VERSIONS: CVVersion[] = [
 ];
 
 export function CVManager() {
-  const { t, locale, fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const [activeTab, setActiveTab] = React.useState<"ats" | "editor" | "versions">("editor");
   const [cvData, setCvData] = React.useState<CVData>(defaultCVData);
   const [versions, setVersions] = React.useState<CVVersion[]>(INITIAL_VERSIONS);
@@ -94,11 +90,12 @@ export function CVManager() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from("cvs")
             .select("*")
             .eq("profile_id", user.id)
-            .order("updated_at", { ascending: false });
+            .order("updated_at", { ascending: false })
+            .limit(50);
 
           if (data && data.length > 0) {
             const mapped: CVVersion[] = data.map((d) => ({
