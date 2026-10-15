@@ -20,6 +20,8 @@ import {
   Search,
   Sparkles,
   Link as LinkIcon,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +49,7 @@ export function ApplicationBoard() {
   const { t, locale, fmt } = useI18n();
   const [applications, setApplications] = React.useState<Application[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
@@ -67,14 +70,15 @@ export function ApplicationBoard() {
 
         if (error) throw error;
         if (data) setApplications(data as Application[]);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to fetch applications:", err);
       } finally {
         setLoading(false);
       }
     };
     fetchApps();
-  }, []);
+  }, [supabase]);
+
   const [viewMode, setViewMode] = React.useState<"kanban" | "table">("kanban");
   const [search, setSearch] = React.useState("");
   const [activeDragApp, setActiveDragApp] = React.useState<Application | null>(null);
@@ -96,7 +100,7 @@ export function ApplicationBoard() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // 5px movement required to trigger drag (prevents accidental click drag)
+        distance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -109,6 +113,7 @@ export function ApplicationBoard() {
     return applications.filter(
       (a) =>
         localeIncludes(a.job_title, search, locale) ||
+        (a.company_name && localeIncludes(a.company_name, search, locale)) ||
         (a.company_id && localeIncludes(a.company_id, search, locale)) ||
         (a.notes && localeIncludes(a.notes, search, locale))
     );
@@ -167,6 +172,7 @@ export function ApplicationBoard() {
             if (error) {
               console.error("Failed to update status in database:", error);
               setApplications(previousApps);
+              setErrorMessage(error.message);
             }
           });
       }
@@ -194,6 +200,7 @@ export function ApplicationBoard() {
             if (error) {
               console.error("Failed to update status in database:", error);
               setApplications(previousApps);
+              setErrorMessage(error.message);
             }
           });
       } else {
@@ -207,99 +214,126 @@ export function ApplicationBoard() {
     }
   };
 
-  const handleCreateOrUpdate = async (data: Partial<Application>) => {
+  const createApplication = React.useCallback(async (data: Partial<Application>) => {
     const { data: { user } } = await supabase.auth.getUser();
+    const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
+    const companyName = data.company_name || data.company_id || "Company";
 
-    if (editingApp) {
-      // Update
-      setApplications((prev) =>
-        prev.map((a) =>
-          a.id === editingApp.id
-            ? ({ ...a, ...data, updated_at: new Date().toISOString() } as Application)
-            : a
-        )
-      );
-      if (user) {
-        const { error } = await supabase
-          .from("applications")
-          .update({ ...data, updated_at: new Date().toISOString() })
-          .eq("id", editingApp.id);
-        if (error) console.error("Error updating application in DB:", error);
+    const newAppPayload = {
+      profile_id: profileId,
+      company_name: companyName,
+      company_id: null,
+      cv_id: data.cv_id || null,
+      recruiter_job_id: data.recruiter_job_id || null,
+      job_title: data.job_title || "Software Engineer",
+      job_url: data.job_url || null,
+      job_description: data.job_description || null,
+      status: data.status || targetColumnStatus,
+      custom_status_id: null,
+      source: data.source || "linkedin",
+      work_format: data.work_format || "remote",
+      job_location: data.job_location || "Remote",
+      salary_min: data.salary_min || null,
+      salary_max: data.salary_max || null,
+      salary_currency: data.salary_currency || "USD",
+      priority: data.priority || 3,
+      notes: data.notes || null,
+      cover_letter: data.cover_letter || null,
+      applied_at: data.applied_at || new Date().toISOString().split("T")[0],
+      next_interview_at: data.next_interview_at || null,
+      deadline_at: null,
+      ats_score: null,
+    };
+
+    if (user) {
+      const { data: inserted, error } = await supabase
+        .from("applications")
+        .insert(newAppPayload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error inserting application into DB:", error);
+        setErrorMessage(error.message);
+        return;
       }
-    } else {
-      // Create new
-      const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
-      const newAppPayload = {
-        profile_id: profileId,
-        company_id: data.company_id || null,
-        cv_id: data.cv_id || null,
-        recruiter_job_id: data.recruiter_job_id || null,
-        job_title: data.job_title || "Software Engineer",
-        job_url: data.job_url || null,
-        job_description: data.job_description || null,
-        status: data.status || targetColumnStatus,
-        custom_status_id: null,
-        source: data.source || "linkedin",
-        work_format: data.work_format || "remote",
-        job_location: data.job_location || "Remote",
-        salary_min: data.salary_min || null,
-        salary_max: data.salary_max || null,
-        salary_currency: data.salary_currency || "USD",
-        priority: data.priority || 3,
-        notes: data.notes || null,
-        cover_letter: data.cover_letter || null,
-        applied_at: data.applied_at || new Date().toISOString().split("T")[0],
-        next_interview_at: data.next_interview_at || null,
-        deadline_at: null,
-        ats_score: null,
-      };
-
-      if (user) {
-        const { data: inserted, error } = await supabase
-          .from("applications")
-          .insert(newAppPayload)
-          .select()
-          .single();
-
-        if (!error && inserted) {
-          setApplications((prev) => [inserted as Application, ...prev]);
-          return;
-        }
-        if (error) console.error("Error inserting application into DB:", error);
+      if (inserted) {
+        setApplications((prev) => [inserted as Application, ...prev]);
+        return;
       }
+    }
 
-      // Fallback optimistic local item if offline or unauthenticated
-      const fallbackApp: Application = {
-        ...newAppPayload,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
+    // Fallback optimistic local item if offline or unauthenticated preview
+    const fallbackApp: Application = {
+      ...newAppPayload,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setApplications((prev) => [fallbackApp, ...prev]);
+  }, [supabase, targetColumnStatus]);
+
+  const updateApplication = React.useCallback(async (id: string, data: Partial<Application>) => {
+    const previousApps = applications;
+    const companyName = data.company_name || data.company_id;
+
+    setApplications((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? ({ ...a, ...data, company_name: companyName || a.company_name, updated_at: new Date().toISOString() } as Application)
+          : a
+      )
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const updatePayload: Record<string, unknown> = {
+        ...data,
+        company_name: companyName,
+        company_id: null,
         updated_at: new Date().toISOString(),
       };
-      setApplications((prev) => [fallbackApp, ...prev]);
-    }
-  };
+      const { error } = await supabase
+        .from("applications")
+        .update(updatePayload)
+        .eq("id", id);
 
-  const handleDelete = async (id: string) => {
+      if (error) {
+        console.error("Error updating application in DB:", error);
+        setApplications(previousApps);
+        setErrorMessage(error.message);
+      }
+    }
+  }, [applications, supabase]);
+
+  const handleDelete = React.useCallback(async (id: string) => {
     const previousApps = applications;
     setApplications((prev) => prev.filter((a) => a.id !== id));
     setIsDialogOpen(false);
+    setEditingApp(null);
     const { error } = await supabase.from("applications").delete().eq("id", id);
     if (error) {
       console.error("Error deleting application from DB:", error);
       setApplications(previousApps);
+      setErrorMessage(error.message);
     }
-  };
+  }, [applications, supabase]);
 
-  const openAddModal = (status: ApplicationStatus = "wishlist") => {
+  const openAddModal = React.useCallback((status: ApplicationStatus = "wishlist") => {
     setEditingApp(null);
     setTargetColumnStatus(status);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const openEditModal = (app: Application) => {
+  const openEditModal = React.useCallback((app: Application) => {
     setEditingApp(app);
     setIsDialogOpen(true);
-  };
+  }, []);
+
+  const closeDialog = React.useCallback(() => {
+    setIsDialogOpen(false);
+    setEditingApp(null);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -361,6 +395,22 @@ export function ApplicationBoard() {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="rounded-xl border border-red-500/40 bg-red-50 dark:bg-red-950/40 p-4 text-xs font-semibold text-red-800 dark:text-red-300 flex items-center justify-between gap-3 animate-in fade-in-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Filter & Search Bar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -393,7 +443,7 @@ export function ApplicationBoard() {
                 id={col.id}
                 title={col.title}
                 applications={groupedApplications[col.id] || []}
-                onAddCard={() => openAddModal(col.id)}
+                onAddCard={openAddModal}
                 onEditCard={openEditModal}
               />
             ))}
@@ -440,7 +490,7 @@ export function ApplicationBoard() {
                     <td className="p-3.5 pl-5 font-medium text-slate-900 dark:text-white">
                       <div>{app.job_title}</div>
                       <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-normal">
-                        {app.company_id}
+                        {app.company_name || app.company_id || "—"}
                       </div>
                     </td>
                     <td className="p-3.5">
@@ -449,7 +499,9 @@ export function ApplicationBoard() {
                       </Badge>
                     </td>
                     <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-200">
-                      {fmt.formatSalaryCompact(app.salary_min || 140000, app.salary_max, app.salary_currency || "USD")}
+                      {app.salary_min
+                        ? fmt.formatSalaryCompact(app.salary_min, app.salary_max, app.salary_currency || "USD")
+                        : t.applications.salaryUnlisted}
                     </td>
                     <td className="p-3.5 text-slate-500 capitalize">{workFormatLabel}</td>
                     <td className="p-3.5">
@@ -480,10 +532,16 @@ export function ApplicationBoard() {
       {/* Slide-over / Modal Dialog */}
       <ApplicationDialog
         isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        onClose={closeDialog}
         application={editingApp}
         initialStatus={targetColumnStatus}
-        onSave={handleCreateOrUpdate}
+        onSave={(data) => {
+          if (editingApp) {
+            updateApplication(editingApp.id, data);
+          } else {
+            createApplication(data);
+          }
+        }}
         onDelete={handleDelete}
       />
 
@@ -493,7 +551,7 @@ export function ApplicationBoard() {
         onClose={() => setIsImportDialogOpen(false)}
         onJobImported={(newJob) => {
           setEditingApp(null);
-          handleCreateOrUpdate(newJob);
+          createApplication(newJob);
         }}
       />
     </div>

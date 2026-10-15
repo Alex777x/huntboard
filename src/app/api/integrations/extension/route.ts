@@ -4,8 +4,10 @@ import { isSafePublicUrl } from "@/lib/security/ssrf";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
 // Restrict CORS to known origins (extension and local dev)
+const extensionId = process.env.CHROME_EXTENSION_ID;
 const ALLOWED_ORIGINS = new Set([
-  "chrome-extension://huntboard-extension", // Replace with actual extension ID
+  ...(extensionId ? [`chrome-extension://${extensionId}`] : []),
+  "chrome-extension://huntboard-extension",
   "http://localhost:3000",
 ]);
 
@@ -41,16 +43,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Authenticate the user
+    // Authenticate the user if Supabase is active
+    let currentUser: { id: string } | null = null;
+    let supabaseClient = null;
+
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      supabaseClient = await createClient();
+      const { data: { user } } = await supabaseClient.auth.getUser();
       if (!user) {
         return NextResponse.json(
           { ok: false, error: "Unauthorized. Please sign in." },
           { status: 401, headers }
         );
       }
+      currentUser = user;
     }
 
     const body = await req.json();
@@ -100,7 +106,7 @@ export async function POST(req: Request) {
               : "company_website",
             work_format: "remote",
             job_location: "Remote",
-            salary_min: 145000,
+            salary_min: null,
             salary_max: null,
             salary_currency: "USD",
             applied_at: new Date().toISOString().split("T")[0],
@@ -119,18 +125,47 @@ export async function POST(req: Request) {
       );
     }
 
-    const newJob = {
-      id: `app-ext-${Date.now()}`,
+    const appPayload = {
       job_title,
-      company_id,
+      company_name: company_id,
+      company_id: null,
       status: stage || "applied",
       work_format: "remote",
       job_location: "Remote",
-      salary_min: target_salary || 140000,
+      salary_min: target_salary ? Number(target_salary) : null,
       salary_max: null,
       salary_currency: "USD",
       applied_at: new Date().toISOString().split("T")[0],
       notes: notes || "",
+    };
+
+    if (supabaseClient && currentUser) {
+      const { data: inserted, error: insertError } = await supabaseClient
+        .from("applications")
+        .insert({
+          ...appPayload,
+          profile_id: currentUser.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        return NextResponse.json(
+          { ok: false, error: insertError.message },
+          { status: 500, headers }
+        );
+      }
+
+      return NextResponse.json(
+        { ok: true, message: "Job successfully saved to your applications pipeline!", job: inserted },
+        { headers }
+      );
+    }
+
+    // Fallback for offline dev
+    const newJob = {
+      id: `app-ext-${Date.now()}`,
+      ...appPayload,
     };
 
     return NextResponse.json(

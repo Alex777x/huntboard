@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
     if (action === "test") {
       const testText = [
-        `🤖 *HuntBoard: Telegram Notifications Connected!*`,
+        `🤖 <b>HuntBoard: Telegram Notifications Connected!</b>`,
         ``,
         `✅ Your Telegram bot is successfully linked to HuntBoard.`,
         `You will now receive instant alerts whenever verified employers invite you to interview!`,
@@ -80,12 +80,15 @@ export async function POST(req: Request) {
     }
 
     if (action === "notify-invite") {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const inviteUrl = `${baseUrl.replace(/\/$/, "")}/invites`;
+
       const messageText = formatRecruiterInviteTelegramMessage({
         recruiterName: inviteData?.recruiterName || "Verified Recruiter",
         companyName: inviteData?.companyName || "Employer",
         role: inviteData?.role || "Open Role",
         message: inviteData?.message,
-        inviteUrl: inviteData?.inviteUrl || "http://localhost:3000/invites",
+        inviteUrl,
       });
 
       const result = await sendTelegramMessage({

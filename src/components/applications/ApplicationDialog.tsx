@@ -38,7 +38,8 @@ export function ApplicationDialog({
   const { t } = useI18n();
   const [formData, setFormData] = React.useState<Partial<Application>>({
     job_title: "",
-    company_id: "",
+    company_name: "",
+    company_id: null,
     job_url: "",
     job_description: "",
     status: initialStatus,
@@ -56,11 +57,15 @@ export function ApplicationDialog({
 
   React.useEffect(() => {
     if (application) {
-      setFormData(application);
+      setFormData({
+        ...application,
+        company_name: application.company_name || application.company_id || "",
+      });
     } else {
       setFormData({
         job_title: "",
-        company_id: "",
+        company_name: "",
+        company_id: null,
         job_url: "",
         job_description: "",
         status: initialStatus,
@@ -82,8 +87,12 @@ export function ApplicationDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.job_title || !formData.company_id) return;
-    onSave(formData);
+    if (!formData.job_title || !formData.company_name?.trim()) return;
+    onSave({
+      ...formData,
+      company_name: formData.company_name.trim(),
+      company_id: null,
+    });
     onClose();
   };
 
@@ -120,9 +129,9 @@ export function ApplicationDialog({
               </label>
               <Input
                 required
-                value={formData.company_id || ""}
+                value={formData.company_name || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, company_id: e.target.value })
+                  setFormData({ ...formData, company_name: e.target.value })
                 }
                 placeholder="e.g. Stripe, Vercel, Linear"
                 className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs"

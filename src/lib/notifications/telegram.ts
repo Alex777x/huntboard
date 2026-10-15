@@ -12,41 +12,45 @@ export interface RecruiterInviteNotificationParams {
   inviteUrl?: string;
 }
 
-function escapeTelegramMarkdown(text: string): string {
-  return text.replace(/([_*`\[])/g, "\\$1");
+export function escapeTelegramHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
- * Format markdown alert message for incoming recruiter invites
+ * Format HTML alert message for incoming recruiter invites
  */
 export function formatRecruiterInviteTelegramMessage(
   params: RecruiterInviteNotificationParams
 ): string {
-  const safeCompany = escapeTelegramMarkdown(params.companyName);
-  const safeRecruiter = escapeTelegramMarkdown(params.recruiterName);
-  const safeRole = escapeTelegramMarkdown(params.role);
+  const safeCompany = escapeTelegramHtml(params.companyName);
+  const safeRecruiter = escapeTelegramHtml(params.recruiterName);
+  const safeRole = escapeTelegramHtml(params.role);
 
   const lines = [
-    `🎯 *HuntBoard: New Recruiter Interview Invite!*`,
+    `🎯 <b>HuntBoard: New Recruiter Interview Invite!</b>`,
     ``,
-    `🏢 *Company:* ${safeCompany}`,
-    `👤 *Recruiter:* ${safeRecruiter}`,
-    `💼 *Position:* ${safeRole}`,
+    `🏢 <b>Company:</b> ${safeCompany}`,
+    `👤 <b>Recruiter:</b> ${safeRecruiter}`,
+    `💼 <b>Position:</b> ${safeRole}`,
   ];
 
   if (params.message) {
-    lines.push(``, `💬 *Message:*`, `_${escapeTelegramMarkdown(params.message)}_`);
+    lines.push(``, `💬 <b>Message:</b>`, `<i>${escapeTelegramHtml(params.message)}</i>`);
   }
 
-  const rawUrl = params.inviteUrl || "http://localhost:3000/invites";
-  const safeUrl = rawUrl.replace(/[)\s]/g, "");
-  lines.push(``, `👉 [Review & Accept on HuntBoard](${safeUrl})`);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const safeUrl = `${baseUrl.replace(/\/$/, "")}/invites`;
+  lines.push(``, `👉 <a href="${safeUrl}">Review &amp; Accept on HuntBoard</a>`);
 
   return lines.join("\n");
 }
 
 /**
- * Send markdown message via Telegram Bot API
+ * Send HTML message via Telegram Bot API
  */
 export async function sendTelegramMessage(params: {
   botToken: string;
@@ -70,7 +74,7 @@ export async function sendTelegramMessage(params: {
       body: JSON.stringify({
         chat_id: cleanChatId,
         text,
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         disable_web_page_preview: false,
       }),
     });

@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Copy,
   Edit3,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,65 +24,28 @@ import { CVData, CVVersion } from "@/types/cv";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { createClient } from "@/lib/supabase/client";
 
-const INITIAL_VERSIONS: CVVersion[] = [
-  {
-    id: "ver-default-1",
-    name: "General Java Software Engineer (Gold Standard)",
-    targetRole: "Java Software Engineer",
-    targetCompany: "General",
-    updatedAt: "Today",
-    isDefault: true,
-    data: defaultCVData,
-  },
-  {
-    id: "ver-epam",
-    name: "Tailored for EPAM Systems (Microservices & Kafka)",
-    targetRole: "Senior Java Developer",
-    targetCompany: "EPAM Systems",
-    updatedAt: "Aug 26, 2026",
-    isDefault: false,
-    data: {
-      ...defaultCVData,
-      personal: {
-        ...defaultCVData.personal,
-        title: "Senior Java Developer (Microservices & Cloud)",
-      },
-    },
-  },
-];
+interface ATSResult {
+  score: number;
+  matched: string[];
+  missing: string[];
+  suggestions: string[];
+  summary?: string;
+}
 
 export function CVManager() {
   const { t, fmt } = useI18n();
   const [activeTab, setActiveTab] = React.useState<"ats" | "editor" | "versions">("editor");
   const [cvData, setCvData] = React.useState<CVData>(defaultCVData);
-  const [versions, setVersions] = React.useState<CVVersion[]>(INITIAL_VERSIONS);
+  const [versions, setVersions] = React.useState<CVVersion[]>([]);
   const [activeVersionName, setActiveVersionName] = React.useState<string>(
-    "General Java Software Engineer"
+    "Default Resume"
   );
 
   // ATS State
-  const [jobUrl, setJobUrl] = React.useState("https://boards.greenhouse.io/stripe/jobs/482910");
-  const [jobDescription, setJobDescription] = React.useState(
-    "We are looking for a Senior Java Software Engineer with 5+ years experience in Spring Boot, Apache Kafka, Microservices, PostgreSQL, Docker, and CI/CD pipelines..."
-  );
+  const [jobUrl, setJobUrl] = React.useState("");
+  const [jobDescription, setJobDescription] = React.useState("");
   const [isAnalyzing, setIsAnalyzing] = React.useState(false);
-  const [atsResult, setAtsResult] = React.useState<{
-    score: number;
-    matched: string[];
-    missing: string[];
-    suggestions: string[];
-    summary?: string;
-  }>({
-    score: 93,
-    matched: ["Java", "Spring Boot", "Kafka", "PostgreSQL", "Microservices", "Docker"],
-    missing: ["Kubernetes", "Redis", "AWS EKS"],
-    suggestions: [
-      "Quantify throughput benchmarks for your Kafka streams real-time processing.",
-      "Explicitly mention container orchestration if you managed Docker/Helm deployments.",
-      "Highlight your CI/CD optimization metrics (e.g. 50% pipeline acceleration).",
-    ],
-    summary: "High 93% match probability with top ATS score for Java Backend engineering roles.",
-  });
+  const [atsResult, setAtsResult] = React.useState<ATSResult | null>(null);
 
   // Load versions from Supabase with localStorage fallback
   React.useEffect(() => {
@@ -217,7 +181,7 @@ export function CVManager() {
 
   const handleDeleteVersion = async (id: string) => {
     const filtered = versions.filter((v) => v.id !== id);
-    saveVersionsToStorage(filtered.length > 0 ? filtered : INITIAL_VERSIONS);
+    saveVersionsToStorage(filtered);
     const supabase = createClient();
     await supabase.from("cvs").delete().eq("id", id);
   };
@@ -397,91 +361,107 @@ export function CVManager() {
 
           {/* Report */}
           <div className="lg:col-span-2 space-y-4">
-            <Card className="border-indigo-500/20 bg-white dark:bg-slate-900/80 p-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {t.cv.overallAtsScore}
-                    </span>
-                    <Badge variant="success" className="text-[10px]">
-                      {atsResult.score >= 90 ? t.cv.atsExcellent : t.cv.atsStrong}
-                    </Badge>
-                  </div>
-                  <div className="mt-1 flex items-baseline gap-3">
-                    <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
-                      {atsResult.score}
-                      <span className="text-xl text-slate-400 dark:text-slate-500">/100</span>
-                    </span>
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                      {t.cv.atsPassProb}
-                    </span>
-                  </div>
-                  {atsResult.summary && (
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 font-medium">
-                      {atsResult.summary}
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  onClick={() => setActiveTab("editor")}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-slate-200 dark:border-slate-700 gap-1.5 text-slate-700 dark:text-slate-200"
-                >
-                  <Edit3 className="h-3.5 w-3.5" />
-                  <span>{t.cv.editCvWithAts}</span>
-                </Button>
-              </div>
-
-              {/* Matched & Missing Keywords */}
-              <div className="mt-5 space-y-4">
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                    {t.cv.matchedKeywords} ({atsResult.matched.length})
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {atsResult.matched.map((kw) => (
-                      <Badge key={kw} variant="success" className="text-xs py-0.5 px-2">
-                        ✓ {kw}
+            {atsResult ? (
+              <Card className="border-indigo-500/20 bg-white dark:bg-slate-900/80 p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        {t.cv.overallAtsScore}
+                      </span>
+                      <Badge variant="success" className="text-[10px]">
+                        {atsResult.score >= 90 ? t.cv.atsExcellent : t.cv.atsStrong}
                       </Badge>
-                    ))}
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-3">
+                      <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
+                        {atsResult.score}
+                        <span className="text-xl text-slate-400 dark:text-slate-500">/100</span>
+                      </span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        {t.cv.atsPassProb}
+                      </span>
+                    </div>
+                    {atsResult.summary && (
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 font-medium">
+                        {atsResult.summary}
+                      </p>
+                    )}
                   </div>
+
+                  <Button
+                    onClick={() => setActiveTab("editor")}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-slate-200 dark:border-slate-700 gap-1.5 text-slate-700 dark:text-slate-200"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                    <span>{t.cv.editCvWithAts}</span>
+                  </Button>
                 </div>
 
-                {atsResult.missing.length > 0 && (
+                {/* Matched & Missing Keywords */}
+                <div className="mt-5 space-y-4">
                   <div>
                     <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                      {t.cv.missingKeywords}
+                      {t.cv.matchedKeywords} ({atsResult.matched.length})
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {atsResult.missing.map((kw) => (
-                        <Badge key={kw} variant="warning" className="text-xs py-0.5 px-2">
-                          + {kw}
+                      {atsResult.matched.map((kw) => (
+                        <Badge key={kw} variant="success" className="text-xs py-0.5 px-2">
+                          ✓ {kw}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                )}
 
-                {/* Actionable Suggestions */}
-                <div className="pt-2 space-y-2.5">
-                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    {t.cv.aiActionableRecs}
-                  </h4>
-                  {atsResult.suggestions.map((sug, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl border border-indigo-500/20 bg-indigo-50 dark:bg-indigo-950/20 p-3 flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                      <span>{sug}</span>
+                  {atsResult.missing.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                        {t.cv.missingKeywords}
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {atsResult.missing.map((kw) => (
+                          <Badge key={kw} variant="warning" className="text-xs py-0.5 px-2">
+                            + {kw}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Actionable Suggestions */}
+                  <div className="pt-2 space-y-2.5">
+                    <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      {t.cv.aiActionableRecs}
+                    </h4>
+                    {atsResult.suggestions.map((sug, idx) => (
+                      <div
+                        key={idx}
+                        className="rounded-xl border border-indigo-500/20 bg-indigo-50 dark:bg-indigo-950/20 p-3 flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300"
+                      >
+                        <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                        <span>{sug}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            ) : (
+              <Card className="border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 p-12 text-center flex flex-col items-center justify-center space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                  <Bot className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {t.cv.atsBenchmarkTitle}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+                    Enter vacancy requirements on the left and click &quot;{t.cv.runAtsBtn}&quot; to calculate your ATS match score.
+                  </p>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       )}
@@ -512,74 +492,101 @@ export function CVManager() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {versions.map((v) => (
-              <Card
-                key={v.id}
-                className={`border p-5 space-y-4 transition-all shadow-sm ${
-                  v.name === activeVersionName
-                    ? "border-indigo-500 ring-1 ring-indigo-500/50 bg-indigo-50/20 dark:bg-indigo-950/20"
-                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60"
-                }`}
+          {versions.length === 0 ? (
+            <Card className="border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 p-12 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {t.cv.savedCvVersions}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+                  {t.cv.savedCvVersionsDesc}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const name = `Tailored CV (${fmt.formatDate(new Date())})`;
+                  handleSaveVersion(name);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2">
-                      {v.name}
-                    </h4>
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                      {v.targetRole || v.data.personal.title}
-                    </p>
-                  </div>
-                  {v.name === activeVersionName && (
-                    <Badge variant="purple" className="text-[10px] shrink-0">
-                      {t.cv.activeVersionBadge}
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{v.updatedAt}</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDuplicateVersion(v)}
-                      className="h-7 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-2"
-                      title={t.cv.duplicateVersion}
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                    {versions.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteVersion(v.id)}
-                        className="h-7 text-xs text-slate-400 hover:text-red-500 px-2"
-                        title={t.cv.deleteVersion}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                <Plus className="h-3.5 w-3.5" />
+                <span>{t.cv.saveCurrentAsNew}</span>
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {versions.map((v) => (
+                <Card
+                  key={v.id}
+                  className={`border p-5 space-y-4 transition-all shadow-sm ${
+                    v.name === activeVersionName
+                      ? "border-indigo-500 ring-1 ring-indigo-500/50 bg-indigo-50/20 dark:bg-indigo-950/20"
+                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2">
+                        {v.name}
+                      </h4>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                        {v.targetRole || v.data.personal.title}
+                      </p>
+                    </div>
+                    {v.name === activeVersionName && (
+                      <Badge variant="purple" className="text-[10px] shrink-0">
+                        {t.cv.activeVersionBadge}
+                      </Badge>
                     )}
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant={v.name === activeVersionName ? "default" : "outline"}
-                    onClick={() => handleLoadVersion(v)}
-                    className="h-7 text-xs gap-1.5 font-medium"
-                  >
-                    <span>{v.name === activeVersionName ? t.cv.activeVersionBadge : t.cv.loadIntoEditor}</span>
-                    <ArrowRight className="h-3 w-3" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>{v.updatedAt}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDuplicateVersion(v)}
+                        className="h-7 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-2"
+                        title={t.cv.duplicateVersion}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      {versions.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteVersion(v.id)}
+                          className="h-7 text-xs text-slate-400 hover:text-red-500 px-2"
+                          title={t.cv.deleteVersion}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant={v.name === activeVersionName ? "default" : "outline"}
+                      onClick={() => handleLoadVersion(v)}
+                      className="h-7 text-xs gap-1.5 font-medium"
+                    >
+                      <span>{v.name === activeVersionName ? t.cv.activeVersionBadge : t.cv.loadIntoEditor}</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

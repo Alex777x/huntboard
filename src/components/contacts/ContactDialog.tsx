@@ -31,7 +31,8 @@ export function ContactDialog({
   const [formData, setFormData] = React.useState<Partial<Contact>>({
     name: "",
     role: "Technical Recruiter",
-    company_id: "",
+    company_name: "",
+    company_id: null,
     email: "",
     phone: "",
     linkedin_url: "",
@@ -40,12 +41,16 @@ export function ContactDialog({
 
   React.useEffect(() => {
     if (contact) {
-      setFormData(contact);
+      setFormData({
+        ...contact,
+        company_name: contact.company_name || contact.company_id || "",
+      });
     } else {
       setFormData({
         name: "",
         role: "Technical Recruiter",
-        company_id: "",
+        company_name: "",
+        company_id: null,
         email: "",
         phone: "",
         linkedin_url: "",
@@ -59,7 +64,11 @@ export function ContactDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
-    onSave(formData);
+    onSave({
+      ...formData,
+      company_name: formData.company_name?.trim() || null,
+      company_id: null,
+    });
     onClose();
   };
 
@@ -95,8 +104,8 @@ export function ContactDialog({
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Company Name</label>
               <Input
-                value={formData.company_id || ""}
-                onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                value={formData.company_name || ""}
+                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                 placeholder="e.g. Stripe, Vercel"
                 className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
               />

@@ -80,6 +80,7 @@ export interface Contact {
   id: string;
   profile_id: string;
   company_id: string | null;
+  company_name: string | null;
   name: string;
   email: string | null;
   phone: string | null;
@@ -107,6 +108,7 @@ export interface Application {
   id: string;
   profile_id: string;
   company_id: string | null;
+  company_name: string | null;
   cv_id: string | null;
   recruiter_job_id: string | null;
   job_title: string;

@@ -32,12 +32,25 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If Supabase is not configured, fail closed in production, allow local preview in dev
+  // If Supabase is not configured, fail closed in production, allow local preview in dev only if explicitly enabled
   if (!supabaseUrl || !supabaseAnonKey) {
     if (process.env.NODE_ENV === "production") {
       return new NextResponse("Server Configuration Error: Missing Authentication Provider", { status: 503 });
     }
-    return response;
+    // Strictly block unauthenticated /api/* access even in dev when Supabase is missing (R-4)
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Authentication required. Backend service not configured." },
+        { status: 503 }
+      );
+    }
+    // Gate page route bypass behind explicit HUNTBOARD_DEV_PREVIEW=1
+    if (process.env.HUNTBOARD_DEV_PREVIEW === "1") {
+      return response;
+    }
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {

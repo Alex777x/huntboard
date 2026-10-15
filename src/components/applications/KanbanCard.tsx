@@ -64,7 +64,7 @@ export const KanbanCard = React.memo(function KanbanCard({ application, onEdit }
             </span>
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate">
-                {application.company_id || "Company"}
+                {application.company_name || application.company_id || "Company"}
               </span>
               {application.job_url && (
                 <a

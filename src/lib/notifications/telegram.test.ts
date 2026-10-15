@@ -5,21 +5,21 @@ import {
 } from "./telegram";
 
 describe("Telegram notifications helper", () => {
-  it("formats recruiter invite message into Markdown", () => {
+  it("formats recruiter invite message into HTML with safe escaping", () => {
     const formatted = formatRecruiterInviteTelegramMessage({
-      recruiterName: "Elena Rostova",
-      companyName: "Revolut",
+      recruiterName: "Elena <Rostova>",
+      companyName: "Revolut & Co",
       role: "Lead Fullstack Engineer",
-      message: "We loved your profile and want to chat.",
+      message: "We loved your profile & want to chat.",
       inviteUrl: "http://localhost:3000/invites",
     });
 
-    expect(formatted).toContain("HuntBoard: New Recruiter Interview Invite!");
-    expect(formatted).toContain("Revolut");
-    expect(formatted).toContain("Elena Rostova");
+    expect(formatted).toContain("<b>HuntBoard: New Recruiter Interview Invite!</b>");
+    expect(formatted).toContain("Revolut &amp; Co");
+    expect(formatted).toContain("Elena &lt;Rostova&gt;");
     expect(formatted).toContain("Lead Fullstack Engineer");
-    expect(formatted).toContain("We loved your profile");
-    expect(formatted).toContain("http://localhost:3000/invites");
+    expect(formatted).toContain("<i>We loved your profile &amp; want to chat.</i>");
+    expect(formatted).toContain('<a href="http://localhost:3000/invites">Review &amp; Accept on HuntBoard</a>');
   });
 
   it("gracefully returns error when bot token or chatId is missing", async () => {

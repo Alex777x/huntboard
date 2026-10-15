@@ -13,13 +13,44 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RecruiterVerificationPage() {
   const { t } = useI18n();
-  const [step, setStep] = React.useState<"input" | "code" | "verified">("verified");
-  const [companyName, setCompanyName] = React.useState("Stripe");
-  const [workEmail, setWorkEmail] = React.useState("jessica.miller@stripe.com");
+  const [step, setStep] = React.useState<"input" | "code" | "verified">("input");
+  const [companyName, setCompanyName] = React.useState("");
+  const [workEmail, setWorkEmail] = React.useState("");
   const [code, setCode] = React.useState("");
+  const [, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("is_verified_recruiter, company_name, company_email")
+            .eq("id", user.id)
+            .single();
+
+          if (profile) {
+            setCompanyName(profile.company_name || "");
+            setWorkEmail(profile.company_email || "");
+            if (profile.is_verified_recruiter) {
+              setStep("verified");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error loading recruiter profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
 
   const handleSendCode = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +58,28 @@ export default function RecruiterVerificationPage() {
     setStep("code");
   };
 
-  const handleVerifyCode = (e: React.FormEvent) => {
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({
+            is_verified_recruiter: true,
+            company_name: companyName,
+            company_email: workEmail,
+          })
+          .eq("id", user.id);
+      }
+    } catch (err) {
+      console.error("Error updating recruiter verification:", err);
+    }
     setStep("verified");
   };
+
+  const emailDomain = workEmail.includes("@") ? workEmail.split("@")[1] : "company.com";
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -38,10 +87,16 @@ export default function RecruiterVerificationPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
           {t.recruiter.verifyTitle}
-          <Badge variant="success" className="text-xs gap-1">
-            <ShieldCheck className="h-3 w-3" />
-            {t.recruiter.verificationStatusActive}
-          </Badge>
+          {step === "verified" ? (
+            <Badge variant="success" className="text-xs gap-1">
+              <ShieldCheck className="h-3 w-3" />
+              {t.recruiter.verificationStatusActive}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs gap-1 text-amber-500 border-amber-500/40">
+              {t.recruiter.pendingStatus}
+            </Badge>
+          )}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {t.recruiter.verificationDesc}
@@ -57,10 +112,10 @@ export default function RecruiterVerificationPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  {t.recruiter.verifiedEmployer}: {companyName}
+                  {t.recruiter.verifiedEmployer}: {companyName || "Employer"}
                 </h3>
                 <Badge variant="success" className="text-[10px]">
-                  Domain @stripe.com
+                  Domain @{emailDomain}
                 </Badge>
               </div>
               <p className="text-xs text-emerald-800 dark:text-emerald-300/90 leading-relaxed">

@@ -7,6 +7,7 @@ import {
   Briefcase,
   ArrowRight,
   Lock,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/components/providers/I18nProvider";
@@ -17,9 +18,15 @@ export default function LoginPage() {
   const { t } = useI18n();
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
+  const [authError, setAuthError] = React.useState<string | null>(null);
+
+  const isDev =
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_DEV_PREVIEW === "true";
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setAuthError(null);
     try {
       if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
         const supabase = createClient();
@@ -27,12 +34,23 @@ export default function LoginPage() {
           provider: "google",
           options: { redirectTo: `${window.location.origin}/auth/callback` },
         });
-        if (!error) return;
+        if (error) {
+          setAuthError(error.message);
+          setLoading(false);
+          return;
+        }
+        return;
       }
-    } catch {
-      // Fallback for local preview without OAuth configured
+      if (isDev) {
+        router.push("/dashboard");
+        return;
+      }
+      setAuthError("Authentication service is not configured.");
+    } catch (err: unknown) {
+      setAuthError(err instanceof Error ? err.message : "Failed to initiate login");
+    } finally {
+      setLoading(false);
     }
-    router.push("/dashboard");
   };
 
   const handleGuestLogin = (role: "seeker" | "recruiter" | "admin") => {
@@ -66,6 +84,13 @@ export default function LoginPage() {
 
         {/* Auth Card */}
         <Card className="border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-xl space-y-5">
+          {authError && (
+            <div className="rounded-lg border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+              <span>{authError}</span>
+            </div>
+          )}
+
           <div className="space-y-3">
             <Button
               onClick={handleGoogleLogin}
@@ -94,50 +119,51 @@ export default function LoginPage() {
             </Button>
           </div>
 
-          <div className="relative flex items-center justify-center">
-            <span className="w-full border-t border-slate-800" />
-            <span className="bg-slate-900 px-3 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              {t.nav.dashboard}
-            </span>
-            <span className="w-full border-t border-slate-800" />
-          </div>
+          {/* Instant Role Preview buttons (dev only) */}
+          {isDev && (
+            <div className="space-y-2 pt-1">
+              <div className="relative flex items-center justify-center">
+                <span className="w-full border-t border-slate-800" />
+                <span className="bg-slate-900 px-3 text-[10px] font-semibold text-amber-500 uppercase tracking-wider">
+                  Dev Mode Preview
+                </span>
+                <span className="w-full border-t border-slate-800" />
+              </div>
 
-          {/* Instant Role Preview buttons */}
-          <div className="space-y-2">
-            <Button
-              onClick={() => handleGuestLogin("seeker")}
-              variant="outline"
-              size="sm"
-              className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-indigo-500/40 bg-slate-950/60"
-            >
-              <span>{t.auth.seekerRole}</span>
-              <ArrowRight className="h-3.5 w-3.5 text-indigo-400" />
-            </Button>
+              <Button
+                onClick={() => handleGuestLogin("seeker")}
+                variant="outline"
+                size="sm"
+                className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-indigo-500/40 bg-slate-950/60"
+              >
+                <span>{t.auth.seekerRole}</span>
+                <ArrowRight className="h-3.5 w-3.5 text-indigo-400" />
+              </Button>
 
-            <Button
-              onClick={() => handleGuestLogin("recruiter")}
-              variant="outline"
-              size="sm"
-              className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-emerald-500/40 bg-slate-950/60"
-            >
-              <span>{t.auth.recruiterRole}</span>
-              <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
-            </Button>
+              <Button
+                onClick={() => handleGuestLogin("recruiter")}
+                variant="outline"
+                size="sm"
+                className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-emerald-500/40 bg-slate-950/60"
+              >
+                <span>{t.auth.recruiterRole}</span>
+                <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
+              </Button>
 
-            <Button
-              onClick={() => handleGuestLogin("admin")}
-              variant="outline"
-              size="sm"
-              className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-purple-500/40 bg-slate-950/60"
-            >
-              <span>{t.nav.adminMode}</span>
-              <Lock className="h-3.5 w-3.5 text-purple-400" />
-            </Button>
-          </div>
+              <Button
+                onClick={() => handleGuestLogin("admin")}
+                variant="outline"
+                size="sm"
+                className="w-full justify-between text-xs border-slate-800 text-slate-200 hover:border-purple-500/40 bg-slate-950/60"
+              >
+                <span>{t.nav.adminMode}</span>
+                <Lock className="h-3.5 w-3.5 text-purple-400" />
+              </Button>
+            </div>
+          )}
 
           {/* Footer note */}
           <p className="text-[11px] text-center text-slate-500">
-            {" "}
             <Link href="/register" className="text-indigo-400 hover:underline font-semibold">
               {t.auth.register}
             </Link>

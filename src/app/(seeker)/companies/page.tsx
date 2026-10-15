@@ -6,6 +6,8 @@ import {
   Search,
   ExternalLink,
   MapPin,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function CompaniesPage() {
   const { t, locale } = useI18n();
   const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const fetchCompanies = async () => {
@@ -61,6 +64,7 @@ export default function CompaniesPage() {
   const handleSave = async (data: Partial<Company>) => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    const previousCompanies = companies;
 
     if (editingCompany) {
       setCompanies((prev) =>
@@ -71,7 +75,11 @@ export default function CompaniesPage() {
           .from("companies")
           .update({ ...data, updated_at: new Date().toISOString() })
           .eq("id", editingCompany.id);
-        if (error) console.error("Error updating company:", error);
+        if (error) {
+          console.error("Error updating company:", error);
+          setCompanies(previousCompanies);
+          setErrorMessage(error.message);
+        }
       }
     } else {
       const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
@@ -93,11 +101,16 @@ export default function CompaniesPage() {
           .select()
           .single();
 
-        if (!error && inserted) {
+        if (error) {
+          console.error("Error inserting company:", error);
+          setErrorMessage(error.message);
+          return;
+        }
+
+        if (inserted) {
           setCompanies([inserted as Company, ...companies]);
           return;
         }
-        if (error) console.error("Error inserting company:", error);
       }
 
       const fallbackComp: Company = {
@@ -111,15 +124,36 @@ export default function CompaniesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    const previousCompanies = companies;
     setCompanies(companies.filter((c) => c.id !== id));
     setIsDialogOpen(false);
     const supabase = createClient();
     const { error } = await supabase.from("companies").delete().eq("id", id);
-    if (error) console.error("Error deleting company:", error);
+    if (error) {
+      console.error("Error deleting company:", error);
+      setCompanies(previousCompanies);
+      setErrorMessage(error.message);
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="rounded-xl border border-red-500/40 bg-red-50 dark:bg-red-950/40 p-4 text-xs font-semibold text-red-800 dark:text-red-300 flex items-center justify-between gap-3 animate-in fade-in-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

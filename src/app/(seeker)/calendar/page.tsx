@@ -11,6 +11,7 @@ import {
   Trash2,
   Download,
   CalendarPlus,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import { Event as DbEvent } from "@/types/database";
 export default function CalendarPage() {
   const { t, fmt } = useI18n();
   const [events, setEvents] = React.useState<CalendarEventItem[]>([]);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingEvent, setEditingEvent] = React.useState<CalendarEventItem | null>(null);
 
@@ -112,6 +114,7 @@ export default function CalendarPage() {
 
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    const previousEvents = events;
 
     if (editingEvent) {
       const updated = events.map((ev) =>
@@ -120,8 +123,9 @@ export default function CalendarPage() {
           : ev
       );
       setEvents(updated);
+      setIsDialogOpen(false);
       if (user) {
-        await supabase
+        const { error } = await supabase
           .from("events")
           .update({
             title,
@@ -134,6 +138,11 @@ export default function CalendarPage() {
             notes: notes || null,
           })
           .eq("id", editingEvent.id);
+        if (error) {
+          console.error("Error updating event:", error);
+          setEvents(previousEvents);
+          setErrorMessage(error.message);
+        }
       }
     } else {
       const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
@@ -157,7 +166,13 @@ export default function CalendarPage() {
           .select()
           .single();
 
-        if (!error && inserted) {
+        if (error) {
+          console.error("Error inserting event:", error);
+          setErrorMessage(error.message);
+          return;
+        }
+
+        if (inserted) {
           const newEv: CalendarEventItem = {
             id: inserted.id,
             title: inserted.title,
@@ -187,15 +202,21 @@ export default function CalendarPage() {
         notes,
       };
       setEvents([fallbackEv, ...events]);
+      setIsDialogOpen(false);
     }
-    setIsDialogOpen(false);
   };
 
   const handleDelete = async (id: string) => {
+    const previousEvents = events;
     setEvents(events.filter((ev) => ev.id !== id));
     setIsDialogOpen(false);
     const supabase = createClient();
-    await supabase.from("events").delete().eq("id", id);
+    const { error } = await supabase.from("events").delete().eq("id", id);
+    if (error) {
+      console.error("Error deleting event:", error);
+      setEvents(previousEvents);
+      setErrorMessage(error.message);
+    }
   };
 
   const handleExportAllIcs = () => {
@@ -205,6 +226,22 @@ export default function CalendarPage() {
 
   return (
     <div className="w-full space-y-6">
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="rounded-xl border border-red-500/40 bg-red-50 dark:bg-red-950/40 p-4 text-xs font-semibold text-red-800 dark:text-red-300 flex items-center justify-between gap-3 animate-in fade-in-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

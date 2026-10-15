@@ -6,6 +6,8 @@ import {
   Search,
   Mail,
   Linkedin,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function ContactsPage() {
   const { t, locale } = useI18n();
   const [contacts, setContacts] = React.useState<Contact[]>([]);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const fetchContacts = async () => {
@@ -39,7 +42,7 @@ export default function ContactsPage() {
 
         if (error) throw error;
         if (data) setContacts(data as Contact[]);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to fetch contacts:", err);
       }
     };
@@ -54,26 +57,43 @@ export default function ContactsPage() {
     return contacts.filter(
       (c) =>
         localeIncludes(c.name, search, locale) ||
-        localeIncludes(c.company_id, search, locale) ||
-        localeIncludes(c.role, search, locale) ||
-        localeIncludes(c.notes, search, locale)
+        (c.company_name && localeIncludes(c.company_name, search, locale)) ||
+        (c.company_id && localeIncludes(c.company_id, search, locale)) ||
+        (c.role && localeIncludes(c.role, search, locale)) ||
+        (c.notes && localeIncludes(c.notes, search, locale))
     );
   }, [contacts, search, locale]);
 
   const handleSave = async (data: Partial<Contact>) => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    const previousContacts = contacts;
+    const companyName = data.company_name || data.company_id || null;
 
     if (editingContact) {
       setContacts((prev) =>
-        prev.map((c) => (c.id === editingContact.id ? ({ ...c, ...data } as Contact) : c))
+        prev.map((c) =>
+          c.id === editingContact.id
+            ? ({ ...c, ...data, company_name: companyName } as Contact)
+            : c
+        )
       );
       if (user) {
         const { error } = await supabase
           .from("contacts")
-          .update({ ...data, updated_at: new Date().toISOString() })
+          .update({
+            ...data,
+            company_name: companyName,
+            company_id: null,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", editingContact.id);
-        if (error) console.error("Error updating contact:", error);
+
+        if (error) {
+          console.error("Error updating contact:", error);
+          setContacts(previousContacts);
+          setErrorMessage(error.message);
+        }
       }
     } else {
       const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
@@ -81,7 +101,8 @@ export default function ContactsPage() {
         profile_id: profileId,
         name: data.name || "New Contact",
         role: data.role || "Recruiter",
-        company_id: data.company_id || null,
+        company_name: companyName,
+        company_id: null,
         email: data.email || null,
         phone: data.phone || null,
         linkedin_url: data.linkedin_url || null,
@@ -95,11 +116,16 @@ export default function ContactsPage() {
           .select()
           .single();
 
-        if (!error && inserted) {
+        if (error) {
+          console.error("Error inserting contact:", error);
+          setErrorMessage(error.message);
+          return;
+        }
+
+        if (inserted) {
           setContacts([inserted as Contact, ...contacts]);
           return;
         }
-        if (error) console.error("Error inserting contact:", error);
       }
 
       const fallbackContact: Contact = {
@@ -113,15 +139,36 @@ export default function ContactsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    const previousContacts = contacts;
     setContacts(contacts.filter((c) => c.id !== id));
     setIsDialogOpen(false);
     const supabase = createClient();
     const { error } = await supabase.from("contacts").delete().eq("id", id);
-    if (error) console.error("Error deleting contact:", error);
+    if (error) {
+      console.error("Error deleting contact:", error);
+      setContacts(previousContacts);
+      setErrorMessage(error.message);
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="rounded-xl border border-red-500/40 bg-red-50 dark:bg-red-950/40 p-4 text-xs font-semibold text-red-800 dark:text-red-300 flex items-center justify-between gap-3 animate-in fade-in-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -185,9 +232,9 @@ export default function ContactsPage() {
                 </div>
               </div>
 
-              {c.company_id && (
+              {(c.company_name || c.company_id) && (
                 <Badge variant="outline" className="text-[10px] border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-300">
-                  {c.company_id}
+                  {c.company_name || c.company_id}
                 </Badge>
               )}
             </div>

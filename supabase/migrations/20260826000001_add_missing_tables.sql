@@ -26,43 +26,12 @@ CREATE TABLE IF NOT EXISTS public.feedback_tickets (
     description TEXT,
     status TEXT DEFAULT 'open',
     priority TEXT DEFAULT 'medium',
-    upvotes INTEGER NOT NULL DEFAULT 0,
-    admin_notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
--- Indexes for WHERE / ORDER BY scalability
-CREATE INDEX IF NOT EXISTS idx_events_profile_date ON public.events(profile_id, event_date);
-CREATE INDEX IF NOT EXISTS idx_feedback_tickets_created ON public.feedback_tickets(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_feedback_tickets_profile ON public.feedback_tickets(profile_id);
 
 -- RLS
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedback_tickets ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage own events" ON public.events
-    FOR ALL USING (auth.uid() = profile_id);
-
-CREATE POLICY "Anyone can view feedback tickets" ON public.feedback_tickets
-    FOR SELECT USING (true);
-
-CREATE POLICY "Users can manage own feedback" ON public.feedback_tickets
-    FOR ALL USING (auth.uid() = profile_id);
-
-CREATE POLICY "Admins can manage all feedback tickets" ON public.feedback_tickets
-    FOR ALL USING (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
-
-CREATE POLICY "Admins can manage all profiles" ON public.profiles
-    FOR ALL USING (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
-
-CREATE POLICY "Users can create community reports" ON public.community_reports
-    FOR INSERT WITH CHECK (auth.uid() = reporter_id);
-
-CREATE POLICY "Admins can manage community reports" ON public.community_reports
-    FOR ALL USING (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    );
+CREATE POLICY "Users can manage own events" ON public.events FOR ALL USING (auth.uid() = profile_id);
+CREATE POLICY "Users can manage own feedback" ON public.feedback_tickets FOR ALL USING (auth.uid() = profile_id);
