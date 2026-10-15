@@ -31,6 +31,28 @@ export function Header() {
 
   const isRecruiter = pathname?.startsWith("/recruiter");
   const isAdmin = pathname?.startsWith("/admin");
+  const [initials, setInitials] = React.useState(isRecruiter ? "R" : "U");
+
+  React.useEffect(() => {
+    async function fetchUser() {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "";
+          if (name) {
+            const parts = name.trim().split(" ");
+            const init = parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}` : parts[0].slice(0, 2);
+            setInitials(init.toUpperCase());
+          }
+        }
+      } catch {
+        // Fallback initials already set
+      }
+    }
+    fetchUser();
+  }, [isRecruiter]);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 px-4 md:px-6 backdrop-blur-xl transition-colors duration-200 gap-3">
@@ -140,7 +162,7 @@ export function Header() {
         {/* User Profile Quick Link */}
         <Link href={isRecruiter ? "/recruiter/verify" : "/profile"}>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-xs font-bold text-white shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all cursor-pointer">
-            {isRecruiter ? "R" : "AL"}
+            {initials}
           </div>
         </Link>
       </div>

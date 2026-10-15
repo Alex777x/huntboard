@@ -8,26 +8,29 @@ import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(req: Request) {
   try {
-    // Rate limiting: max 10 notifications per minute per caller
-    const clientIdentifier = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "telegram-caller";
-    const rl = checkRateLimit(`tg:${clientIdentifier}`, { max: 10, windowMs: 60 * 1000 });
-    if (!rl.success) {
-      return NextResponse.json(
-        { ok: false, error: "Too many Telegram notification requests. Please wait a moment." },
-        { status: 429, headers: { "Retry-After": "60" } }
-      );
-    }
-
+    let user: { id: string } | null = null;
     // Authenticate the user — only authenticated users can trigger notifications
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: authData } = await supabase.auth.getUser();
+      user = authData?.user || null;
       if (!user) {
         return NextResponse.json(
           { ok: false, error: "Unauthorized. Please sign in." },
           { status: 401 }
         );
       }
+    }
+
+    // Rate limiting: max 10 notifications per minute per caller
+    const clientIdentifier = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "telegram-caller";
+    const rateLimitKey = user?.id ? `tg:user:${user.id}` : `tg:ip:${clientIdentifier}`;
+    const rl = checkRateLimit(rateLimitKey, { max: 10, windowMs: 60 * 1000 });
+    if (!rl.success) {
+      return NextResponse.json(
+        { ok: false, error: "Too many Telegram notification requests. Please wait a moment." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
     }
 
     const body = await req.json();

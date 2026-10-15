@@ -42,7 +42,7 @@ export default function LoginPage() {
         return;
       }
       if (isDev) {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
         return;
       }
       setAuthError("Authentication service is not configured.");
@@ -56,11 +56,11 @@ export default function LoginPage() {
   const handleGuestLogin = (role: "seeker" | "recruiter" | "admin") => {
     setLoading(true);
     if (role === "admin") {
-      router.push("/admin/users");
+      window.location.href = "/admin/users";
     } else if (role === "recruiter") {
-      router.push("/recruiter/jobs");
+      window.location.href = "/recruiter/jobs";
     } else {
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     }
   };
 

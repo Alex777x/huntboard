@@ -33,12 +33,65 @@ export function InviteCandidateDialog({
   onInviteSent,
 }: InviteCandidateDialogProps) {
   const { t } = useI18n();
-  const [selectedJob, setSelectedJob] = React.useState("job-1");
+  const [jobs, setJobs] = React.useState<
+    Array<{
+      id: string;
+      title: string;
+      company_name: string;
+      salary_min: number | null;
+      salary_max: number | null;
+      salary_currency: string | null;
+    }>
+  >([]);
+  const [selectedJob, setSelectedJob] = React.useState("");
   const [message, setMessage] = React.useState(
     "Hi! We came across your profile on HuntBoard and love your engineering background. We'd love to invite you for an initial chat regarding our open position."
   );
   const [sent, setSent] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    async function fetchJobs() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data } = await supabase
+            .from("recruiter_jobs")
+            .select("id, title, company_name, salary_min, salary_max, salary_currency")
+            .eq("recruiter_id", user.id)
+            .eq("status", "active")
+            .limit(50);
+
+          if (data && data.length > 0) {
+            setJobs(data as any);
+            setSelectedJob(data[0].id);
+            return;
+          }
+        }
+
+        // Fallback: load any active platform jobs
+        const { data: anyJobs } = await supabase
+          .from("recruiter_jobs")
+          .select("id, title, company_name, salary_min, salary_max, salary_currency")
+          .eq("status", "active")
+          .limit(20);
+
+        if (anyJobs && anyJobs.length > 0) {
+          setJobs(anyJobs as any);
+          setSelectedJob(anyJobs[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch jobs for invite dialog:", err);
+      }
+    }
+
+    if (isOpen) {
+      fetchJobs();
+    }
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (candidate) {
@@ -46,6 +99,7 @@ export function InviteCandidateDialog({
         `Hi ${candidate.name}! We came across your profile on HuntBoard and were very impressed with your background in ${candidate.skills.slice(0, 3).join(", ")}. We would love to invite you for a conversation regarding our engineering opening!`
       );
       setSent(false);
+      setErrorMessage(null);
     }
   }, [candidate, isOpen]);
 
@@ -59,49 +113,48 @@ export function InviteCandidateDialog({
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
+    if (!selectedJob) {
+      setErrorMessage("Please select a target vacancy");
+      return;
+    }
+
     onInviteSent?.(candidate.id, selectedJob, message);
 
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && selectedJob) {
-        await supabase.from("invites").insert({
+      if (user) {
+        const { error: inviteErr } = await supabase.from("invites").insert({
           sender_id: user.id,
           receiver_id: candidate.id,
           recruiter_job_id: selectedJob,
           message,
           status: "pending",
         });
-      }
-    } catch (dbErr) {
-      console.error("DB invite dispatch error:", dbErr);
-    }
 
-    // Try sending Telegram notification if user configured it
-    try {
-      const botToken = localStorage.getItem("huntboard_telegram_bot_token");
-      const chatId = localStorage.getItem("huntboard_telegram_chat_id");
+        if (inviteErr) {
+          console.error("DB invite dispatch error:", inviteErr);
+          setErrorMessage(inviteErr.message);
+          return;
+        }
 
-      if (botToken && chatId) {
-        await fetch("/api/integrations/telegram", {
+        // Dispatch candidate Telegram notification via server API route
+        fetch("/api/recruiter/invites/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "notify-invite",
-            botToken,
-            chatId,
-            inviteData: {
-              recruiterName: "Jessica Miller (Verified Recruiter)",
-              companyName: "Stripe",
-              role: selectedJob === "job-1" ? "Senior Fullstack Engineer" : "Staff Engineer",
-              message,
-              inviteUrl: `${window.location.origin}/invites`,
-            },
+            receiverId: candidate.id,
+            jobId: selectedJob,
+            message,
           }),
-        });
+        }).catch((err) => console.error("Notification dispatch error:", err));
       }
-    } catch (err) {
-      console.error("Telegram invite dispatch error:", err);
+    } catch (dbErr: any) {
+      console.error("DB invite dispatch error:", dbErr);
+      setErrorMessage(dbErr?.message || "Failed to dispatch invite");
+      return;
     }
 
     setSent(true);
@@ -132,6 +185,12 @@ export function InviteCandidateDialog({
           </button>
         </div>
 
+        {errorMessage && (
+          <div className="p-3 text-xs bg-red-500/10 border border-red-500/30 text-red-500 rounded-lg">
+            {errorMessage}
+          </div>
+        )}
+
         {sent ? (
           <div className="py-8 text-center space-y-2">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 mx-auto">
@@ -153,9 +212,18 @@ export function InviteCandidateDialog({
                 onChange={(e) => setSelectedJob(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="job-1">Senior Fullstack Engineer (Payments) — Stripe ($150k - $185k)</option>
-                <option value="job-2">Frontend Architect (Design Systems) — Stripe ($160k - $195k)</option>
-                <option value="job-3">Staff Backend Engineer (Postgres) — Stripe ($190k - $230k)</option>
+                {jobs.length > 0 ? (
+                  jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title} — {j.company_name}{" "}
+                      {j.salary_min && j.salary_max
+                        ? `($${Math.round(j.salary_min / 1000)}k - $${Math.round(j.salary_max / 1000)}k)`
+                        : ""}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No active vacancies found</option>
+                )}
               </select>
             </div>
 

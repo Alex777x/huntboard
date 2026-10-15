@@ -55,14 +55,24 @@ export default function FeedbackPage() {
   const { t } = useI18n();
   const [tickets, setTickets] = React.useState<FeedbackTicket[]>([]);
   const [activeTab, setActiveTab] = React.useState<"roadmap" | "form">("roadmap");
+  const [feedbackType, setFeedbackType] = React.useState<"feature" | "bug" | "general">("feature");
+  const [title, setTitle] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [severity, setSeverity] = React.useState<"low" | "medium" | "high" | "critical">("medium");
+  const [userEmail, setUserEmail] = React.useState("");
+  const [isSuccess, setIsSuccess] = React.useState(false);
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function fetchData() {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         return;
+      }
+
+      if (user.email) {
+        setUserEmail(user.email);
       }
       
       const { data, error } = await supabase
@@ -78,8 +88,8 @@ export default function FeedbackPage() {
           description: d.description || "",
           severity: d.priority as any,
           status: d.status as any,
-          userEmail: "",
-          userName: "",
+          userEmail: d.user_email || "",
+          userName: d.user_name || "",
           createdAt: new Date(d.created_at).toLocaleDateString(),
           upvotes: d.upvotes || 0,
           adminNotes: d.admin_notes || "",
@@ -87,56 +97,50 @@ export default function FeedbackPage() {
       }
     }
     fetchData();
-  }, []);
-
-  // Form fields
-  const [feedbackType, setFeedbackType] = React.useState<"feature" | "bug" | "general">("feature");
-  const [title, setTitle] = React.useState("");
-  const [description, setDescription] = React.useState("");
-  const [severity, setSeverity] = React.useState<"low" | "medium" | "high" | "critical">("medium");
-  const [userEmail, setUserEmail] = React.useState("anatoli@example.com");
-  const [isSuccess, setIsSuccess] = React.useState(false);
+  }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !description) return;
 
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    const profileId = user?.id || "00000000-0000-0000-0000-000000000001";
-    const authorEmail = user?.email || userEmail || "user@huntboard.app";
-    const authorName = user?.user_metadata?.full_name || "HuntBoard User";
+    const authorEmail = user.email || userEmail || "";
+    const authorName = user.user_metadata?.full_name || "HuntBoard User";
 
-    if (user) {
-      await supabase.from("feedback_tickets").insert({
-        profile_id: profileId,
-        ticket_type: feedbackType,
-        title,
-        description,
-        status: "open",
-        priority: severity,
-      });
-    }
-
-    const newTicket: FeedbackTicket = {
-      id: `fb-${Date.now()}`,
+    const { data: inserted, error } = await supabase.from("feedback_tickets").insert({
+      profile_id: user.id,
+      ticket_type: feedbackType,
       type: feedbackType,
       title,
       description,
+      status: "open",
+      priority: severity,
       severity,
-      status: "pending",
-      userEmail: authorEmail,
-      userName: authorName,
-      createdAt: t.common.justNow,
-      upvotes: 1,
-    };
+      user_email: authorEmail,
+      user_name: authorName,
+    }).select().single();
 
-    setTickets([newTicket, ...tickets]);
-    setIsSuccess(true);
-    setTitle("");
-    setDescription("");
-    setTimeout(() => setIsSuccess(false), 4000);
+    if (!error && inserted) {
+      const newTicket: FeedbackTicket = {
+        id: inserted.id,
+        type: inserted.ticket_type as any,
+        title: inserted.title,
+        description: inserted.description || "",
+        severity: inserted.priority as any,
+        status: inserted.status as any,
+        userEmail: authorEmail,
+        userName: authorName,
+        createdAt: t.common.justNow,
+        upvotes: 1,
+      };
+      setTickets((prev) => [newTicket, ...prev]);
+      setIsSuccess(true);
+      setTitle("");
+      setDescription("");
+      setTimeout(() => setIsSuccess(false), 4000);
+    }
   };
 
   return (

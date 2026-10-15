@@ -58,17 +58,20 @@ export default function JobApplicantsPage() {
         return;
       }
 
-      const { data: jobData } = await supabase
+      const { data: jobData, error: jobError } = await supabase
         .from("recruiter_jobs")
         .select("title")
         .eq("id", params.id)
+        .eq("recruiter_id", user.id)
         .single();
 
-      if (jobData) {
-        setJobTitle(jobData.title);
-      } else {
-        setJobTitle("Unknown Job");
+      if (jobError || !jobData) {
+        setJobTitle("Access Denied or Job Not Found");
+        setLoading(false);
+        return;
       }
+
+      setJobTitle(jobData.title);
 
       const { data: appsData } = await supabase
         .from("applications")
@@ -77,18 +80,20 @@ export default function JobApplicantsPage() {
           *,
           profiles (
             full_name,
+            email,
             current_role,
             skills
           )
         `,
         )
-        .eq("recruiter_job_id", params.id);
+        .eq("recruiter_job_id", params.id)
+        .limit(100);
 
       if (appsData) {
         const formatted: JobApplicant[] = appsData.map((app: any) => ({
           id: app.id,
           name: app.profiles?.full_name || "Unknown",
-          email: "candidate@example.com",
+          email: app.profiles?.email || "candidate@huntboard.app",
           currentRole: app.profiles?.current_role || "Candidate",
           matchScore: app.ats_score?.score || 0,
           stage: app.status as ApplicantStage,
@@ -109,7 +114,7 @@ export default function JobApplicantsPage() {
       setLoading(false);
     }
     loadData();
-  }, [params.id]);
+  }, [params.id, supabase]);
 
   const pipelineStages: { id: ApplicantStage; title: string; color: string }[] =
     [
@@ -141,16 +146,28 @@ export default function JobApplicantsPage() {
     ];
 
   const moveStage = async (applicantId: string, newStage: ApplicantStage) => {
+    const previousApplicants = applicants;
+    const previousSelected = selectedApplicant;
+
     setApplicants((prev) =>
       prev.map((a) => (a.id === applicantId ? { ...a, stage: newStage } : a)),
     );
     if (selectedApplicant?.id === applicantId) {
       setSelectedApplicant({ ...selectedApplicant, stage: newStage });
     }
-    await supabase
+
+    const { error } = await supabase
       .from("applications")
       .update({ status: newStage })
       .eq("id", applicantId);
+
+    if (error) {
+      console.error("Failed to update pipeline stage:", error);
+      setApplicants(previousApplicants);
+      if (previousSelected) {
+        setSelectedApplicant(previousSelected);
+      }
+    }
   };
 
   const filteredApplicants = applicants.filter(
@@ -404,10 +421,17 @@ export default function JobApplicantsPage() {
               <Button
                 onClick={async () => {
                   if (selectedApplicant) {
-                    await supabase
+                    const previousApplicants = applicants;
+                    const applicantId = selectedApplicant.id;
+                    const newNotes = selectedApplicant.recruiterNotes;
+                    const { error } = await supabase
                       .from("applications")
-                      .update({ notes: selectedApplicant.recruiterNotes })
-                      .eq("id", selectedApplicant.id);
+                      .update({ notes: newNotes })
+                      .eq("id", applicantId);
+                    if (error) {
+                      console.error("Failed to save applicant notes:", error);
+                      setApplicants(previousApplicants);
+                    }
                   }
                   setSelectedApplicant(null);
                 }}

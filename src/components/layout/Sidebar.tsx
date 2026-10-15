@@ -28,6 +28,69 @@ export function Sidebar({ className }: { className?: string }) {
   const { t } = useI18n();
   const { isOpen, close } = useMobileNav();
 
+  const [appsCount, setAppsCount] = React.useState<number | null>(null);
+  const [tokensRemaining, setTokensRemaining] = React.useState<number | null>(null);
+  const [userName, setUserName] = React.useState<string>("Candidate");
+  const [userRole, setUserRole] = React.useState<string>("Software Engineer");
+  const [userInitials, setUserInitials] = React.useState<string>("U");
+
+  React.useEffect(() => {
+    async function loadData() {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, current_role")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.full_name) {
+          setUserName(profile.full_name);
+          const parts = profile.full_name.trim().split(" ");
+          setUserInitials(
+            parts.length >= 2
+              ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+              : parts[0].slice(0, 2).toUpperCase()
+          );
+        } else if (user.email) {
+          const fallback = user.email.split("@")[0];
+          setUserName(fallback);
+          setUserInitials(fallback.slice(0, 2).toUpperCase());
+        }
+
+        if (profile?.current_role) {
+          setUserRole(profile.current_role);
+        }
+
+        const { count } = await supabase
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .eq("profile_id", user.id);
+
+        if (typeof count === "number") {
+          setAppsCount(count);
+        }
+
+        const { data: tokenData } = await supabase
+          .from("ai_token_balance")
+          .select("tokens_remaining")
+          .eq("profile_id", user.id)
+          .single();
+
+        if (tokenData && typeof tokenData.tokens_remaining === "number") {
+          setTokensRemaining(tokenData.tokens_remaining);
+        }
+      } catch (e) {
+        console.error("Failed to load sidebar user data:", e);
+      }
+    }
+    loadData();
+  }, []);
+
   const seekerNavItems = [
     {
       title: t.nav.dashboard,
@@ -38,7 +101,7 @@ export function Sidebar({ className }: { className?: string }) {
       title: t.nav.applications,
       href: "/applications",
       icon: Briefcase,
-      badge: "12",
+      badge: appsCount !== null ? String(appsCount) : undefined,
       badgeVariant: "purple",
     },
     {
@@ -189,7 +252,7 @@ export function Sidebar({ className }: { className?: string }) {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              150 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t.common.tokens}</span>
+              {tokensRemaining !== null ? tokensRemaining : "—"} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t.common.tokens}</span>
             </span>
             <Link
               href="/settings"
@@ -232,15 +295,15 @@ export function Sidebar({ className }: { className?: string }) {
             <Avatar className="h-9 w-9 border border-indigo-500/30">
               <AvatarImage src="" />
               <AvatarFallback className="bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
-                AL
+                {userInitials}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
               <span className="truncate text-xs font-medium text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white">
-                Anatoli L.
+                {userName}
               </span>
               <span className="truncate text-[10px] text-slate-500 dark:text-slate-400">
-                Software Engineer
+                {userRole}
               </span>
             </div>
           </div>

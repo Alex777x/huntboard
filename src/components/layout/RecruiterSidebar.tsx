@@ -32,12 +32,51 @@ export function RecruiterSidebar({ className }: { className?: string }) {
   const { t } = useI18n();
   const { isOpen, close } = useMobileNav();
 
+  const [activeJobsCount, setActiveJobsCount] = React.useState<number | null>(null);
+  const [companyName, setCompanyName] = React.useState<string>("");
+  const [isVerified, setIsVerified] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    async function loadData() {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_name, is_verified_recruiter")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) {
+          if (profile.company_name) setCompanyName(profile.company_name);
+          setIsVerified(Boolean(profile.is_verified_recruiter));
+        }
+
+        const { count } = await supabase
+          .from("recruiter_jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("recruiter_id", user.id)
+          .eq("status", "active");
+
+        if (typeof count === "number") {
+          setActiveJobsCount(count);
+        }
+      } catch (e) {
+        console.error("Failed to load recruiter sidebar data:", e);
+      }
+    }
+    loadData();
+  }, []);
+
   const recruiterNavItems: NavItem[] = [
     {
       title: t.recruiter.jobsTitle,
       href: "/recruiter/jobs",
       icon: Briefcase,
-      badge: `4 ${t.common.active}`,
+      badge: activeJobsCount !== null ? `${activeJobsCount} ${t.common.active}` : undefined,
       badgeVariant: "purple",
     },
     {
@@ -149,14 +188,16 @@ export function RecruiterSidebar({ className }: { className?: string }) {
         {/* Company Card */}
         <div className="rounded-xl border border-purple-500/20 bg-purple-50/50 dark:bg-gradient-to-b dark:from-purple-950/30 dark:to-slate-900/60 p-3.5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-900 dark:text-white">Stripe Recruiting</span>
-            <Badge variant="success" className="text-[9px] gap-1 px-1.5 py-0">
+            <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+              {companyName || t.nav.employerPortal}
+            </span>
+            <Badge variant={isVerified ? "success" : "secondary"} className="text-[9px] gap-1 px-1.5 py-0 shrink-0">
               <ShieldCheck className="h-3 w-3" />
-              {t.common.verified}
+              {isVerified ? t.common.verified : t.recruiter.pendingStatus}
             </Badge>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            {t.recruiter.domainVerified}
+            {isVerified ? t.recruiter.domainVerified : t.recruiter.verificationDesc}
           </p>
         </div>
       </div>

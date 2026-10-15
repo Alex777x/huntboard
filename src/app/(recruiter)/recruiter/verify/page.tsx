@@ -7,6 +7,8 @@ import {
   Mail,
   CheckCircle2,
   ArrowRight,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +23,8 @@ export default function RecruiterVerificationPage() {
   const [companyName, setCompanyName] = React.useState("");
   const [workEmail, setWorkEmail] = React.useState("");
   const [code, setCode] = React.useState("");
-  const [, setLoading] = React.useState(true);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     const loadProfile = async () => {
@@ -45,38 +48,56 @@ export default function RecruiterVerificationPage() {
         }
       } catch (err) {
         console.error("Error loading recruiter profile:", err);
-      } finally {
-        setLoading(false);
       }
     };
     loadProfile();
   }, []);
 
-  const handleSendCode = (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workEmail.includes("@")) return;
-    setStep("code");
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/recruiter/verify/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName: companyName.trim(), workEmail: workEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || "Failed to send verification code");
+        return;
+      }
+      setStep("code");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to send verification code");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+    setIsSubmitting(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("profiles")
-          .update({
-            is_verified_recruiter: true,
-            company_name: companyName,
-            company_email: workEmail,
-          })
-          .eq("id", user.id);
+      const res = await fetch("/api/recruiter/verify/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || "Invalid or expired verification code");
+        return;
       }
-    } catch (err) {
-      console.error("Error updating recruiter verification:", err);
+      setStep("verified");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to verify code");
+    } finally {
+      setIsSubmitting(false);
     }
-    setStep("verified");
   };
 
   const emailDomain = workEmail.includes("@") ? workEmail.split("@")[1] : "company.com";
@@ -102,6 +123,21 @@ export default function RecruiterVerificationPage() {
           {t.recruiter.verificationDesc}
         </p>
       </div>
+
+      {errorMessage && (
+        <div className="rounded-xl border border-red-500/40 bg-red-50 dark:bg-red-950/40 p-4 text-xs font-semibold text-red-800 dark:text-red-300 flex items-center justify-between gap-3 animate-in fade-in-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {step === "verified" && (
         <Card className="border-emerald-500/30 bg-emerald-50/50 dark:bg-gradient-to-b dark:from-emerald-950/20 dark:to-slate-900/60 p-6 space-y-5">

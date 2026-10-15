@@ -21,6 +21,33 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const role = searchParams.get("role");
+      if (role === "recruiter" || role === "seeker") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Check if profile exists to prevent demoting existing role (e.g. admin)
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+          const finalRole = existingProfile?.role || role;
+
+          await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              role: finalRole,
+              email: user.email || null,
+              full_name: user.user_metadata?.full_name || null,
+              avatar_url: user.user_metadata?.avatar_url || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "id" }
+          );
+        }
+      }
+
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
 

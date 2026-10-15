@@ -26,6 +26,7 @@ export interface Profile {
   id: string;
   role: UserRole;
   full_name: string | null;
+  email?: string | null;
   avatar_url: string | null;
   current_role: string | null;
   desired_role: string | null;
@@ -46,6 +47,9 @@ export interface Profile {
   company_name: string | null;
   company_email: string | null;
   is_verified_recruiter: boolean;
+  verified?: boolean;
+  telegram_bot_token?: string | null;
+  telegram_chat_id?: string | null;
   reputation_score: number;
   created_at: string;
   updated_at: string;
@@ -197,9 +201,37 @@ export interface FeedbackTicket {
   id: string;
   profile_id: string;
   ticket_type: string;
+  type?: string;
   title: string;
   description: string | null;
   status: string;
   priority: string;
+  severity?: string;
+  user_email?: string | null;
+  user_name?: string | null;
+  admin_notes?: string | null;
+  upvotes?: number;
+  created_at: string;
+}
+
+export interface Invite {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  recruiter_job_id: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+  responded_at?: string | null;
+}
+
+export interface RecruiterVerification {
+  id: string;
+  profile_id: string;
+  company_name: string;
+  work_email: string;
+  code: string;
+  expires_at: string;
+  verified_at?: string | null;
   created_at: string;
 }

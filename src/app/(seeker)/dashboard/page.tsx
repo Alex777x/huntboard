@@ -54,7 +54,7 @@ export default function SeekerDashboardPage() {
         }
 
         const [appsRes, tokensRes, invitesRes] = await Promise.all([
-          supabase.from("applications").select("id, status, next_interview_at, job_title, company_id, created_at").eq("profile_id", user.id),
+          supabase.from("applications").select("id, status, next_interview_at, job_title, company_id, company_name, created_at").eq("profile_id", user.id).limit(200),
           supabase.from("ai_token_balance").select("tokens_remaining").eq("profile_id", user.id).single(),
           supabase.from("invites").select("*, recruiter_job_id(*)").eq("receiver_id", user.id).eq("status", "pending").limit(1)
         ]);

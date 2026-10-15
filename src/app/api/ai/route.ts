@@ -4,20 +4,44 @@ import { LATEST_CURATED_MODELS, AIProviderName, isStrictTextLLM } from "@/lib/ai
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
+function parseLLMJson<T>(raw: string): T | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]) as T;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
+    let user: { id: string } | null = null;
     // Defense-in-depth: verify authentication even though middleware enforces it
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: authData } = await supabase.auth.getUser();
+      user = authData?.user || null;
       if (!user) {
         return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
       }
     }
 
-    // Rate limiting: max 30 requests per minute per IP / caller
-    const clientIdentifier = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-    const rateLimit = checkRateLimit(`ai:${clientIdentifier}`, { max: 30, windowMs: 60 * 1000 });
+    // Rate limiting: max 30 requests per minute per authenticated user or IP
+    const clientIp = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const rateLimitKey = user?.id ? `ai:user:${user.id}` : `ai:ip:${clientIp}`;
+    const rateLimit = checkRateLimit(rateLimitKey, { max: 30, windowMs: 60 * 1000 });
     if (!rateLimit.success) {
       return NextResponse.json(
         { error: "Too many AI requests. Please wait a moment before trying again." },
@@ -30,7 +54,7 @@ export async function POST(req: NextRequest) {
       action,
       apiKey: clientApiKey,
       provider = "openai",
-      model = "gpt-5.6-sol",
+      model = "gpt-4o",
       cvData,
       jobDescription,
       jobTitle,
@@ -55,7 +79,14 @@ export async function POST(req: NextRequest) {
     const apiKey =
       (clientApiKey || "").trim() ||
       (provider === "openai" ? (process.env.OPENAI_API_KEY || "").trim() : "");
-    const selectedModel = model === "custom" || !model ? "gpt-5.6-sol" : model;
+    const selectedModel =
+      model === "custom" || !model
+        ? provider === "gemini"
+          ? "gemini-2.0-flash"
+          : provider === "anthropic"
+          ? "claude-3-7-sonnet-20250219"
+          : "gpt-4o"
+        : model;
 
     // Helper: Execute LLM Completion
     const callLLM = async (prompt: string, jsonFormat = false) => {
@@ -90,17 +121,22 @@ export async function POST(req: NextRequest) {
       }
 
       if (provider === "gemini") {
+        const geminiPayload: Record<string, unknown> = {
+          contents: [{ parts: [{ text: prompt }] }],
+        };
+        if (jsonFormat) {
+          geminiPayload.generationConfig = { responseMimeType: "application/json" };
+        }
+
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel || "gemini-3.7-flash"}:generateContent`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "x-goog-api-key": apiKey,
             },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
+            body: JSON.stringify(geminiPayload),
           }
         );
 
@@ -114,6 +150,10 @@ export async function POST(req: NextRequest) {
       }
 
       if (provider === "anthropic") {
+        const systemPrompt = jsonFormat
+          ? "You are a specialized JSON-only assistant. Respond ONLY with valid, raw JSON without markdown code fences or conversational text."
+          : undefined;
+
         const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
@@ -124,6 +164,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             model: selectedModel || "claude-3-7-sonnet-20250219",
             max_tokens: 2048,
+            ...(systemPrompt ? { system: systemPrompt } : {}),
             messages: [{ role: "user", content: prompt }],
           }),
         });
@@ -488,17 +529,23 @@ ${JSON.stringify((cvData as CVData)?.experience || [])}`;
 
       const aiText = await callLLM(prompt, true);
       if (aiText) {
-        try {
-          const parsed = JSON.parse(aiText);
+        const parsed = parseLLMJson<{ skills: string[] }>(aiText);
+        if (parsed?.skills && Array.isArray(parsed.skills)) {
           return NextResponse.json(parsed);
-        } catch (e) {
-          console.error("Failed to parse skills JSON:", e);
         }
       }
 
-      return NextResponse.json({
-        skills: ["Java", "Spring Boot", "Kafka", "PostgreSQL", "Docker", "REST API", "CI/CD", "JUnit", "Microservices"],
-      });
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "AI API key is missing. Please configure your API key in Settings." },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Failed to parse skills from AI provider. Please try again." },
+        { status: 502 }
+      );
     }
 
     // Action 4: ATS Benchmark
@@ -523,25 +570,29 @@ Respond ONLY with a JSON object:
 
       const aiText = await callLLM(prompt, true);
       if (aiText) {
-        try {
-          const parsed = JSON.parse(aiText);
+        const parsed = parseLLMJson<{
+          score: number;
+          matched: string[];
+          missing: string[];
+          suggestions: string[];
+          summary: string;
+        }>(aiText);
+        if (parsed && typeof parsed.score === "number") {
           return NextResponse.json(parsed);
-        } catch (e) {
-          console.error("Failed to parse ATS JSON:", e);
         }
       }
 
-      return NextResponse.json({
-        score: 93,
-        matched: ["Java", "Spring Boot", "Kafka", "SQL", "Microservices", "Docker"],
-        missing: ["Kubernetes", "Redis", "AWS EKS"],
-        suggestions: [
-          "Quantify throughput and latency benchmarks for your Spring Boot microservices.",
-          "Explicitly mention container orchestration (Kubernetes/Helm) if relevant to your deployments.",
-          "Highlight experience with CI/CD pipeline automation and GitLab CI.",
-        ],
-        summary: "Outstanding technical match with high alignment for Senior Java / Backend Engineering roles.",
-      });
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "AI API key is missing. Please configure your API key in Settings." },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Failed to calculate ATS benchmark. Please try again." },
+        { status: 502 }
+      );
     }
 
     // Action 5: Cover Letter
@@ -558,9 +609,17 @@ ${jobDescription || ""}`;
         return NextResponse.json({ coverLetter: aiText });
       }
 
-      return NextResponse.json({
-        coverLetter: `Dear Hiring Team at ${companyName || "the company"},\n\nI am writing to express my strong enthusiasm for the ${jobTitle || "Software Engineer"} position. With my extensive background in building high-throughput microservices, scalable distributed architectures with Java, Spring Boot, Kafka, and PostgreSQL, I am confident in my ability to deliver immediate value to your engineering organization.\n\nThroughout my career, I have focused on solving high-complexity problems, accelerating CI/CD pipelines, and writing clean, test-driven production code. I would welcome the opportunity to discuss how my experience aligns with your team's goals.\n\nSincerely,\n${(cvData as CVData)?.personal?.fullName || "Anatoli Aliaksandrou"}`,
-      });
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "AI API key is missing. Please configure your API key in Settings." },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Failed to generate cover letter. Please try again." },
+        { status: 502 }
+      );
     }
 
     // Action 6: Interview Prep Questions
@@ -589,44 +648,30 @@ Respond ONLY with a JSON object:
 
       const aiText = await callLLM(prompt, true);
       if (aiText) {
-        try {
-          const parsed = JSON.parse(aiText);
+        const parsed = parseLLMJson<{
+          overview: string;
+          questions: Array<{
+            question: string;
+            category: string;
+            suggestedTalkingPoints: string[];
+          }>;
+        }>(aiText);
+        if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
           return NextResponse.json(parsed);
-        } catch (e) {
-          console.error("Failed to parse Interview Prep JSON:", e);
         }
       }
 
-      return NextResponse.json({
-        overview: `Targeted interview preparation for ${jobTitle || "Software Engineer"} at ${companyName || "Target Company"}. Focus on microservices scalability, concurrency, and distributed data pipelines.`,
-        questions: [
-          {
-            question: "How would you design a high-throughput Kafka streaming architecture to handle real-time payment transactions with exactly-once semantics?",
-            category: "system-design",
-            suggestedTalkingPoints: [
-              "Discuss Kafka topic partitioning, consumer group rebalancing, and transaction coordinators.",
-              "Explain idempotent producers and transactional outbox patterns with PostgreSQL.",
-              "Mention dead-letter queues and monitoring with Grafana/Prometheus.",
-            ],
-          },
-          {
-            question: "In your previous project, you optimized complex SQL queries by 100%. Can you walk through your indexing strategy and how you diagnosed query execution plans?",
-            category: "technical",
-            suggestedTalkingPoints: [
-              "Explain EXPLAIN ANALYZE, sequential scans vs index scans (B-Tree vs GIN/GiST).",
-              "Discuss connection pooling, deadlock avoidance, and composite indexing.",
-            ],
-          },
-          {
-            question: "Tell me about a time you had to mentor a developer or drive a major legacy system migration into microservices under tight deadlines.",
-            category: "behavioral",
-            suggestedTalkingPoints: [
-              "Describe the Strangler Fig pattern for incremental monolith decomposition.",
-              "Highlight structured code reviews, automated test safety nets, and empathetic team mentorship.",
-            ],
-          },
-        ],
-      });
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: "AI API key is missing. Please configure your API key in Settings." },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Failed to generate interview preparation questions. Please try again." },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

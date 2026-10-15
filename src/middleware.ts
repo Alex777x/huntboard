@@ -92,14 +92,20 @@ export async function middleware(request: NextRequest) {
   }
 
   // Role-based route protection
-  if (pathname.startsWith("/admin")) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+  const userRole = (user.app_metadata?.role as string) || (user.user_metadata?.role as string);
 
-    if (profile?.role !== "admin") {
+  if (pathname.startsWith("/admin")) {
+    let role = userRole;
+    if (!role) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      role = profile?.role;
+    }
+
+    if (role !== "admin") {
       const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
       response.cookies.getAll().forEach((cookie) => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
@@ -109,13 +115,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/recruiter")) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    let role = userRole;
+    if (!role) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      role = profile?.role;
+    }
 
-    if (profile?.role !== "recruiter" && profile?.role !== "admin") {
+    if (role !== "recruiter" && role !== "admin") {
       const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
       response.cookies.getAll().forEach((cookie) => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);

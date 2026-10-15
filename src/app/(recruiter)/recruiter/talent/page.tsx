@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { InviteCandidateDialog } from "@/components/recruiter/InviteCandidateDialog";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 interface TalentProfile {
   id: string;
@@ -31,86 +32,69 @@ interface TalentProfile {
   summary: string;
 }
 
-const talentDatabase: TalentProfile[] = [
-  {
-    id: "tal-1",
-    name: "Anatoli Aliaksandrou",
-    currentRole: "Senior Fullstack Engineer",
-    desiredRole: "Staff Web Architect / Principal Engineer",
-    location: "Warsaw, Poland",
-    openToRelocation: true,
-    visibleToRecruiters: true, // Opt-in active
-    skills: [
-      { name: "Next.js 15", level: "Expert" },
-      { name: "TypeScript", level: "Expert" },
-      { name: "PostgreSQL & Supabase", level: "Senior" },
-      { name: "Tailwind CSS v4", level: "Senior" },
-      { name: "Distributed Systems", level: "Senior" },
-    ],
-    matchScore: 96,
-    summary:
-      "Fullstack engineer with 6+ years specializing in Next.js 15 App Router, distributed PostgreSQL systems, and AI tooling workflows.",
-  },
-  {
-    id: "tal-2",
-    name: "Marek Kowalski",
-    currentRole: "Staff Frontend Engineer",
-    desiredRole: "Frontend Tech Lead",
-    location: "Krakow, Poland",
-    openToRelocation: false,
-    visibleToRecruiters: true,
-    skills: [
-      { name: "React 19", level: "Expert" },
-      { name: "TypeScript", level: "Expert" },
-      { name: "Design Systems", level: "Senior" },
-      { name: "Web Performance", level: "Senior" },
-    ],
-    matchScore: 91,
-    summary:
-      "Specialist in web performance (CWV optimization, INP, LCP) and micro-frontend architectures.",
-  },
-  {
-    id: "tal-3",
-    name: "Svetlana Petrova",
-    currentRole: "Senior Backend Developer",
-    desiredRole: "Staff Backend Engineer",
-    location: "Berlin, Germany",
-    openToRelocation: true,
-    visibleToRecruiters: true,
-    skills: [
-      { name: "PostgreSQL", level: "Expert" },
-      { name: "Go / Golang", level: "Senior" },
-      { name: "Distributed Systems", level: "Senior" },
-      { name: "Kafka", level: "Mid" },
-    ],
-    matchScore: 89,
-    summary:
-      "Backend engineer building high-throughput payment transaction pipelines and database query optimization.",
-  },
-  {
-    id: "tal-4",
-    name: "Private Candidate (Hidden)",
-    currentRole: "Lead Engineer",
-    desiredRole: "VP of Engineering",
-    location: "London, UK",
-    openToRelocation: false,
-    visibleToRecruiters: false, // HIDDEN: Candidate opted out
-    skills: [{ name: "TypeScript", level: "Expert" }],
-    matchScore: 80,
-    summary: "Hidden candidate profile.",
-  },
-];
-
 export default function TalentPoolPage() {
   const { t, locale } = useI18n();
+  const [talent, setTalent] = React.useState<TalentProfile[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [relocationOnly, setRelocationOnly] = React.useState(false);
   const [selectedCandidate, setSelectedCandidate] = React.useState<TalentProfile | null>(null);
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
 
+  React.useEffect(() => {
+    async function fetchTalent() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, current_role, desired_role, location, open_to_relocation, visible_to_recruiters, skills")
+          .eq("visible_to_recruiters", true)
+          .eq("role", "seeker")
+          .limit(100);
+
+        if (!error && data && data.length > 0) {
+          const mapped: TalentProfile[] = data.map((p: any) => {
+            const skillsList = Array.isArray(p.skills)
+              ? p.skills.map((s: any) =>
+                  typeof s === "string"
+                    ? { name: s, level: "Senior" }
+                    : { name: s.name, level: s.level || "Senior" }
+                )
+              : [];
+            return {
+              id: p.id,
+              name: p.full_name || "Anonymous Candidate",
+              currentRole: p.current_role || "Software Engineer",
+              desiredRole: p.desired_role || "Staff / Lead Engineer",
+              location: p.location || "Remote",
+              openToRelocation: Boolean(p.open_to_relocation),
+              visibleToRecruiters: true,
+              skills: skillsList,
+              matchScore: 92,
+              summary: `${p.full_name || "Candidate"} specializing in ${
+                skillsList
+                  .map((s: any) => s.name)
+                  .slice(0, 3)
+                  .join(", ") || "software engineering"
+              }.`,
+            };
+          });
+          setTalent(mapped);
+        } else {
+          setTalent([]);
+        }
+      } catch (err) {
+        console.error("Failed to load talent pool from database:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTalent();
+  }, []);
+
   // Filter ONLY candidates where visibleToRecruiters === true (strict privacy compliance)
   const visibleTalent = React.useMemo(() => {
-    return talentDatabase
+    return talent
       .filter((cand) => cand.visibleToRecruiters)
       .filter((cand) => {
         const matchesSearch =
@@ -123,7 +107,7 @@ export default function TalentPoolPage() {
 
         return matchesSearch && matchesRelocation;
       });
-  }, [search, relocationOnly]);
+  }, [talent, search, relocationOnly, locale]);
 
   const handleOpenInvite = (cand: TalentProfile) => {
     setSelectedCandidate(cand);

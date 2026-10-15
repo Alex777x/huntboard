@@ -14,14 +14,41 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/components/providers/I18nProvider";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
   const { t } = useI18n();
   const router = useRouter();
   const [selectedRole, setSelectedRole] = React.useState<"seeker" | "recruiter">("seeker");
+  const [loading, setLoading] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
-  const handleContinue = () => {
-    router.push("/dashboard");
+  const handleContinue = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    const nextPath = selectedRole === "recruiter" ? "/recruiter/jobs" : "/dashboard";
+
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback?role=${selectedRole}&next=${encodeURIComponent(nextPath)}`,
+          },
+        });
+        if (error) {
+          setErrorMsg(error.message);
+          setLoading(false);
+          return;
+        }
+        return;
+      }
+      window.location.href = nextPath;
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to continue registration");
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,13 +137,20 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        {errorMsg && (
+          <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs font-semibold text-red-300">
+            {errorMsg}
+          </div>
+        )}
+
         {/* Action Button */}
         <Card className="border-slate-800 bg-slate-900/80 p-5 space-y-3">
           <Button
             onClick={handleContinue}
-            className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs gap-2 shadow-lg shadow-indigo-600/20"
+            disabled={loading}
+            className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-50"
           >
-            <span>{t.auth.register}</span>
+            <span>{loading ? "..." : t.auth.register}</span>
             <ArrowRight className="h-4 w-4" />
           </Button>
 

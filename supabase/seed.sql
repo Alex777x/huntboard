@@ -1,8 +1,10 @@
 -- HuntBoard Database Seed
 -- User Profile
-INSERT INTO profiles (id, full_name, role, current_role, desired_role, location, visible_to_recruiters) VALUES
-('00000000-0000-0000-0000-000000000001', 'Anatoli Aliaksandrou', 'seeker', 'Senior Fullstack Engineer', 'Staff / Lead Engineer', 'Warsaw, Poland', true)
-ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name;
+INSERT INTO profiles (id, full_name, email, role, current_role, desired_role, location, open_to_relocation, visible_to_recruiters, is_verified_recruiter, verified, skills) VALUES
+('00000000-0000-0000-0000-000000000001', 'Anatoli Aliaksandrou', 'alexandroff103@gmail.com', 'seeker', 'Senior Fullstack Engineer', 'Staff / Lead Engineer', 'Warsaw, Poland', true, true, false, false, '[{"name": "Next.js 15", "level": "Expert"}, {"name": "TypeScript", "level": "Expert"}, {"name": "PostgreSQL & Supabase", "level": "Senior"}, {"name": "Tailwind CSS v4", "level": "Senior"}]'::jsonb),
+('00000000-0000-0000-0000-000000000002', 'Elena Rostova', 'elena.rostova@example.com', 'seeker', 'Frontend Architect', 'Principal UI Engineer', 'Berlin, Germany / Remote', true, true, false, false, '[{"name": "React 19", "level": "Expert"}, {"name": "TypeScript", "level": "Expert"}, {"name": "Design Systems", "level": "Expert"}, {"name": "Next.js", "level": "Senior"}]'::jsonb),
+('00000000-0000-0000-0000-000000000003', 'Marcus Vance', 'marcus.vance@example.com', 'seeker', 'Senior Systems Engineer', 'Staff Infrastructure Engineer', 'London, UK / Remote', true, true, false, false, '[{"name": "PostgreSQL & SQL Optimization", "level": "Expert"}, {"name": "Kafka & Streams", "level": "Expert"}, {"name": "Docker & K8s", "level": "Senior"}]'::jsonb)
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, skills = EXCLUDED.skills, visible_to_recruiters = EXCLUDED.visible_to_recruiters;
 
 -- Companies
 INSERT INTO companies (

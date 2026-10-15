@@ -30,46 +30,38 @@ interface SkillItem {
 
 export default function ProfilePage() {
   const { t } = useI18n();
-  const [fullName, setFullName] = React.useState("Anatoli Aliaksandrou");
-  const [currentRole, setCurrentRole] = React.useState("Java Software Engineer");
-  const [desiredRole, setDesiredRole] = React.useState("Senior Java / Microservices Engineer");
-  const [location, setLocation] = React.useState("Poland, Bialystok");
-  const [openToRelocation, setOpenToRelocation] = React.useState(true);
+  const [fullName, setFullName] = React.useState("");
+  const [currentRole, setCurrentRole] = React.useState("");
+  const [desiredRole, setDesiredRole] = React.useState("");
+  const [location, setLocation] = React.useState("");
+  const [openToRelocation, setOpenToRelocation] = React.useState(false);
   const [visibleToRecruiters, setVisibleToRecruiters] = React.useState(false);
-  const [linkedinUrl, setLinkedinUrl] = React.useState("https://www.linkedin.com/in/anatoli-aliaksandrou/");
-  const [githubUrl, setGithubUrl] = React.useState("https://github.com/alexandroff103");
+  const [linkedinUrl, setLinkedinUrl] = React.useState("");
+  const [githubUrl, setGithubUrl] = React.useState("");
   const [portfolioUrl, setPortfolioUrl] = React.useState("");
-
-  const [skills, setSkills] = React.useState<SkillItem[]>([
-    { name: "Java & Spring Boot", level: "Lead / Expert" },
-    { name: "Apache Kafka & Streams", level: "Lead / Expert" },
-    { name: "Microservices Architecture", level: "Senior" },
-    { name: "PostgreSQL & SQL Optimization", level: "Senior" },
-    { name: "Docker & CI/CD", level: "Senior" },
-    { name: "JUnit & TestContainers", level: "Senior" },
-  ]);
+  const [skills, setSkills] = React.useState<SkillItem[]>([]);
 
   const [newSkillName, setNewSkillName] = React.useState("");
   const [newSkillLevel, setNewSkillLevel] = React.useState<SkillItem["level"]>("Senior");
   const [saved, setSaved] = React.useState(false);
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     const loadProfile = async () => {
       try {
-        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
         if (data && !error) {
-          if (data.full_name) setFullName(data.full_name);
-          if (data.current_role) setCurrentRole(data.current_role);
-          if (data.desired_role) setDesiredRole(data.desired_role);
-          if (data.location) setLocation(data.location);
-          if (typeof data.open_to_relocation === "boolean") setOpenToRelocation(data.open_to_relocation);
-          if (typeof data.visible_to_recruiters === "boolean") setVisibleToRecruiters(data.visible_to_recruiters);
-          if (data.linkedin_url) setLinkedinUrl(data.linkedin_url);
-          if (data.github_url) setGithubUrl(data.github_url);
-          if (data.portfolio_url) setPortfolioUrl(data.portfolio_url);
+          setFullName(data.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "");
+          setCurrentRole(data.current_role || "");
+          setDesiredRole(data.desired_role || "");
+          setLocation(data.location || "");
+          setOpenToRelocation(Boolean(data.open_to_relocation));
+          setVisibleToRecruiters(Boolean(data.visible_to_recruiters));
+          setLinkedinUrl(data.linkedin_url || "");
+          setGithubUrl(data.github_url || "");
+          setPortfolioUrl(data.portfolio_url || "");
           if (Array.isArray(data.skills) && data.skills.length > 0) {
             setSkills(data.skills as SkillItem[]);
           }
@@ -79,7 +71,7 @@ export default function ProfilePage() {
       }
     };
     loadProfile();
-  }, []);
+  }, [supabase]);
 
   const handleAddSkill = () => {
     if (!newSkillName.trim()) return;

@@ -21,7 +21,7 @@ export default function AdminFeedbackPage() {
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "feature" | "bug" | "general">("all");
   const [loading, setLoading] = React.useState(true);
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function fetchTickets() {
@@ -34,21 +34,24 @@ export default function AdminFeedbackPage() {
       const { data } = await supabase
         .from("feedback_tickets")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (data) {
-        setTickets(data.map((tk: any) => ({
-          id: tk.id,
-          type: tk.type,
-          title: tk.title,
-          description: tk.description,
-          severity: tk.severity,
-          status: tk.status,
-          userEmail: tk.user_email,
-          userName: tk.user_name,
-          createdAt: tk.created_at,
-          adminNotes: tk.admin_notes,
-        })));
+        setTickets(
+          data.map((tk: any) => ({
+            id: tk.id,
+            type: tk.ticket_type || tk.type || "general",
+            title: tk.title,
+            description: tk.description || "",
+            severity: tk.priority || tk.severity || "medium",
+            status: tk.status === "open" ? "pending" : tk.status,
+            userEmail: tk.user_email || "",
+            userName: tk.user_name || "User",
+            createdAt: tk.created_at,
+            adminNotes: tk.admin_notes || "",
+          }))
+        );
       }
       setLoading(false);
     }
@@ -56,17 +59,28 @@ export default function AdminFeedbackPage() {
   }, [supabase]);
 
   const updateStatus = async (id: string, newStatus: FeedbackTicket["status"]) => {
-    await supabase.from("feedback_tickets").update({ status: newStatus }).eq("id", id);
+    const prevTickets = tickets;
     setTickets(
       tickets.map((tk) => (tk.id === id ? { ...tk, status: newStatus } : tk))
     );
+    const dbStatus = newStatus === "pending" ? "open" : newStatus;
+    const { error } = await supabase.from("feedback_tickets").update({ status: dbStatus }).eq("id", id);
+    if (error) {
+      console.error("Failed to update status:", error);
+      setTickets(prevTickets);
+    }
   };
 
   const updateNotes = async (id: string, notes: string) => {
-    await supabase.from("feedback_tickets").update({ admin_notes: notes }).eq("id", id);
+    const prevTickets = tickets;
     setTickets(
       tickets.map((tk) => (tk.id === id ? { ...tk, adminNotes: notes } : tk))
     );
+    const { error } = await supabase.from("feedback_tickets").update({ admin_notes: notes }).eq("id", id);
+    if (error) {
+      console.error("Failed to update notes:", error);
+      setTickets(prevTickets);
+    }
   };
 
   const filtered = tickets.filter((tk) => {

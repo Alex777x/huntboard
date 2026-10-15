@@ -10,20 +10,15 @@ export interface AIModelOption {
 
 export const LATEST_CURATED_MODELS: Record<AIProviderName, AIModelOption[]> = {
   openai: [
-    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol (Flagship Frontier)", provider: "openai", description: "Top-tier complex reasoning, coding, and architecture", isLatest: true },
-    { id: "gpt-5.6-terra", name: "GPT-5.6 Terra (Balanced)", provider: "openai", description: "High intelligence and optimal cost/speed ratio", isLatest: true },
-    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna (Fast)", provider: "openai", description: "Ultra-fast low-latency text transformations", isLatest: true },
-    { id: "gpt-4o", name: "GPT-4o (Standard Omnimodel)", provider: "openai", description: "Standard multimodal model for reasoning & coding" },
-    { id: "gpt-4o-mini", name: "GPT-4o-mini", provider: "openai", description: "Lightweight fast model" },
-    { id: "o3-mini", name: "o3-mini", provider: "openai", description: "STEM & algorithmic reasoning model" },
+    { id: "gpt-4o", name: "GPT-4o (Flagship Multimodal)", provider: "openai", description: "Top-tier complex reasoning, coding, and architecture", isLatest: true },
+    { id: "gpt-4o-mini", name: "GPT-4o-mini (Fast & Affordable)", provider: "openai", description: "High intelligence and optimal cost/speed ratio", isLatest: true },
+    { id: "o3-mini", name: "o3-mini (Algorithmic Reasoning)", provider: "openai", description: "STEM & deep reasoning model", isLatest: true },
     { id: "o1", name: "o1 (Deep Reasoning)", provider: "openai", description: "Full chain-of-thought deep reasoning" },
   ],
   gemini: [
-    { id: "gemini-3.7-flash", name: "Gemini 3.7 Flash (Latest Flagship)", provider: "gemini", description: "High-capability multimodal model for agentic execution and coding", isLatest: true },
-    { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro (Deep Reasoning)", provider: "gemini", description: "Flagship model for deep reasoning and complex prompts", isLatest: true },
-    { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", provider: "gemini", description: "High-volume, low-latency fast execution", isLatest: true },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "gemini", description: "Multimodal standard model" },
-    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "gemini", description: "Extended context window (2M tokens)" },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Latest Flagship)", provider: "gemini", description: "High-capability multimodal model for fast execution and coding", isLatest: true },
+    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (Deep Context)", provider: "gemini", description: "Extended context window and deep analysis", isLatest: true },
+    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini", description: "Fast, versatile multimodal performance" },
   ],
   anthropic: [
     { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet (Hybrid Reasoning)", provider: "anthropic", description: "Frontier hybrid reasoning and elite coding writing", isLatest: true },

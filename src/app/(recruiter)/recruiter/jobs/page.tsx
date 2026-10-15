@@ -26,10 +26,10 @@ export default function RecruiterJobsPage() {
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "paused" | "closed">("all");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingJob, setEditingJob] = React.useState<RecruiterJob | null>(null);
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function fetchData() {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -48,7 +48,7 @@ export default function RecruiterJobsPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [supabase]);
 
   const filteredJobs = React.useMemo(() => {
     return jobs.filter((j) => {
@@ -62,23 +62,30 @@ export default function RecruiterJobsPage() {
   }, [jobs, search, statusFilter]);
 
   const handleSave = async (data: Partial<RecruiterJob>) => {
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("User not authenticated");
+      return;
+    }
 
     if (editingJob) {
+      const previousJobs = jobs;
       setJobs((prev) =>
         prev.map((j) => (j.id === editingJob.id ? ({ ...j, ...data } as RecruiterJob) : j))
       );
-      if (user) {
-        await supabase
-          .from("recruiter_jobs")
-          .update(data)
-          .eq("id", editingJob.id);
+      const { error } = await supabase
+        .from("recruiter_jobs")
+        .update(data)
+        .eq("id", editingJob.id)
+        .eq("recruiter_id", user.id);
+
+      if (error) {
+        console.error("Failed to update recruiter job:", error);
+        setJobs(previousJobs);
       }
     } else {
-      const recruiterId = user?.id || "00000000-0000-0000-0000-000000000001";
       const newJobPayload = {
-        recruiter_id: recruiterId,
+        recruiter_id: user.id,
         title: data.title || "Software Engineer",
         company_name: data.company_name || "Company",
         description: data.description || "",
@@ -93,34 +100,29 @@ export default function RecruiterJobsPage() {
         published_to_community: data.published_to_community ?? true,
       };
 
-      if (user) {
-        const { data: inserted, error } = await supabase
-          .from("recruiter_jobs")
-          .insert(newJobPayload)
-          .select()
-          .single();
+      const { data: inserted, error } = await supabase
+        .from("recruiter_jobs")
+        .insert(newJobPayload)
+        .select()
+        .single();
 
-        if (!error && inserted) {
-          setJobs([inserted as RecruiterJob, ...jobs]);
-          return;
-        }
+      if (!error && inserted) {
+        setJobs((prev) => [inserted as RecruiterJob, ...prev]);
+      } else {
+        console.error("Failed to insert job:", error);
       }
-
-      const fallbackJob: RecruiterJob = {
-        ...newJobPayload,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        applicants_count: 0,
-      };
-      setJobs([fallbackJob, ...jobs]);
     }
   };
 
   const handleDelete = async (id: string) => {
-    setJobs(jobs.filter((j) => j.id !== id));
+    const previousJobs = jobs;
+    setJobs((prev) => prev.filter((j) => j.id !== id));
     setIsDialogOpen(false);
-    const supabase = createClient();
-    await supabase.from("recruiter_jobs").delete().eq("id", id);
+    const { error } = await supabase.from("recruiter_jobs").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete job:", error);
+      setJobs(previousJobs);
+    }
   };
 
   return (

@@ -17,7 +17,7 @@ export default function AdminBalancePage() {
   const [tokensToAdd, setTokensToAdd] = React.useState("100");
   const [reason, setReason] = React.useState("Admin Bonus / Early Adopter Grant");
   const [successMessage, setSuccessMessage] = React.useState("");
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function fetchData() {
@@ -26,15 +26,21 @@ export default function AdminBalancePage() {
         setLoading(false);
         return;
       }
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
-      const { data: balances } = await supabase.from("ai_token_balance").select("profile_id, tokens_remaining");
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, company_email")
+        .limit(200);
+      const { data: balances } = await supabase
+        .from("ai_token_balance")
+        .select("profile_id, tokens_remaining")
+        .limit(200);
 
       if (profiles) {
         const merged = profiles.map((p: any) => {
           const bal = balances?.find((b: any) => b.profile_id === p.id);
           return {
             id: p.id,
-            email: p.email,
+            email: p.email || p.company_email || "No email",
             name: p.full_name || "Unknown",
             tokens: bal ? bal.tokens_remaining : 0,
           };
@@ -52,13 +58,31 @@ export default function AdminBalancePage() {
     const count = parseInt(tokensToAdd);
     if (!count || count <= 0 || !selectedUserId) return;
 
-    const userObj = users.find(u => u.id === selectedUserId);
+    const userObj = users.find((u) => u.id === selectedUserId);
     if (!userObj) return;
-    
+
     const currentTokens = userObj.tokens;
-    await supabase.from("ai_token_balance").upsert({ profile_id: selectedUserId, tokens_remaining: currentTokens + count });
-    
-    setUsers(users.map(u => u.id === selectedUserId ? { ...u, tokens: u.tokens + count } : u));
+    const prevUsers = users;
+    setUsers(
+      users.map((u) =>
+        u.id === selectedUserId ? { ...u, tokens: u.tokens + count } : u
+      )
+    );
+
+    const { error } = await supabase.from("ai_token_balance").upsert(
+      {
+        profile_id: selectedUserId,
+        tokens_remaining: currentTokens + count,
+        last_topped_up_at: new Date().toISOString(),
+      },
+      { onConflict: "profile_id" }
+    );
+
+    if (error) {
+      console.error("Failed to top up tokens:", error);
+      setUsers(prevUsers);
+      return;
+    }
 
     setSuccessMessage(`Successfully granted +${count} tokens to ${userObj.email}!`);
     setTimeout(() => setSuccessMessage(""), 3000);

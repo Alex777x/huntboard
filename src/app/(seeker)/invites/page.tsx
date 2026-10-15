@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 
 interface SeekerInvite {
   id: string;
+  recruiterJobId?: string | null;
   recruiterName: string;
   companyName: string;
   isVerifiedCompany: boolean;
@@ -49,6 +50,7 @@ export default function SeekerInvitesPage() {
           message,
           status,
           created_at,
+          recruiter_job_id,
           sender:profiles!sender_id (full_name),
           job:recruiter_jobs!recruiter_job_id (title, company_name, location, salary_min, salary_max)
         `)
@@ -58,6 +60,7 @@ export default function SeekerInvitesPage() {
       if (data && !error) {
         setInvites(data.map((d: any) => ({
           id: d.id,
+          recruiterJobId: d.recruiter_job_id,
           recruiterName: d.sender?.full_name || "Unknown Recruiter",
           companyName: d.job?.company_name || "Unknown Company",
           isVerifiedCompany: true,
@@ -94,8 +97,10 @@ export default function SeekerInvitesPage() {
     }
 
     if (user) {
-      await supabase.from("applications").insert({
+      const { error: insertErr } = await supabase.from("applications").insert({
         profile_id: user.id,
+        company_name: invite.companyName,
+        recruiter_job_id: invite.recruiterJobId || null,
         job_title: invite.jobTitle,
         status: "interview",
         source: "referral",
@@ -104,6 +109,13 @@ export default function SeekerInvitesPage() {
         salary_currency: "USD",
         notes: `Accepted invite from ${invite.recruiterName}. Message: ${invite.message}`,
       });
+
+      if (insertErr) {
+        console.error("Failed to insert application card for accepted invite:", insertErr);
+        setInvites(previousInvites);
+        setToastMessage("");
+        return;
+      }
     }
   };
 

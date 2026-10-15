@@ -26,11 +26,11 @@ interface UserRecord {
 }
 
 export default function AdminUsersPage() {
-  const { t, locale } = useI18n();
+  const { t, locale, fmt } = useI18n();
   const [users, setUsers] = React.useState<UserRecord[]>([]);
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(true);
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
 
   React.useEffect(() => {
     async function fetchUsers() {
@@ -42,23 +42,25 @@ export default function AdminUsersPage() {
 
       const { data: profilesData } = await supabase
         .from("profiles")
-        .select("id, full_name, email, role, verified, created_at");
+        .select("id, full_name, email, company_email, role, verified, is_verified_recruiter, created_at")
+        .limit(200);
 
       const { data: tokenData } = await supabase
         .from("ai_token_balance")
-        .select("profile_id, tokens_remaining");
+        .select("profile_id, tokens_remaining")
+        .limit(200);
 
       if (profilesData) {
         const mappedUsers = profilesData.map((p: any) => {
-          const t = tokenData?.find((td: any) => td.profile_id === p.id);
+          const tok = tokenData?.find((td: any) => td.profile_id === p.id);
           return {
             id: p.id,
             name: p.full_name || "Unknown",
-            email: p.email,
+            email: p.email || p.company_email || "No email",
             role: p.role,
-            isVerified: p.verified,
-            tokens: t ? t.tokens_remaining : 0,
-            joinedDate: fmt.formatDate(p.created_at, locale),
+            isVerified: Boolean(p.verified || p.is_verified_recruiter),
+            tokens: tok ? tok.tokens_remaining : 0,
+            joinedDate: fmt.formatDate(p.created_at),
           };
         });
         setUsers(mappedUsers);
@@ -66,7 +68,7 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
     fetchUsers();
-  }, [supabase, locale]);
+  }, [supabase, locale, fmt]);
 
   const filtered = users.filter(
     (u) =>
@@ -76,15 +78,29 @@ export default function AdminUsersPage() {
 
   const toggleVerification = async (id: string) => {
     const current = users.find((u) => u.id === id)?.isVerified;
-    await supabase.from("profiles").update({ verified: !current }).eq("id", id);
+    const nextVerified = !current;
+    const prevUsers = users;
     setUsers(
-      users.map((u) => (u.id === id ? { ...u, isVerified: !u.isVerified } : u))
+      users.map((u) => (u.id === id ? { ...u, isVerified: nextVerified } : u))
     );
+    const { error } = await supabase
+      .from("profiles")
+      .update({ verified: nextVerified, is_verified_recruiter: nextVerified })
+      .eq("id", id);
+    if (error) {
+      console.error("Failed to toggle verification:", error);
+      setUsers(prevUsers);
+    }
   };
 
   const changeRole = async (id: string, newRole: UserRecord["role"]) => {
-    await supabase.from("profiles").update({ role: newRole }).eq("id", id);
+    const prevUsers = users;
     setUsers(users.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
+    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", id);
+    if (error) {
+      console.error("Failed to update role:", error);
+      setUsers(prevUsers);
+    }
   };
 
   if (loading) return <div>Loading...</div>;

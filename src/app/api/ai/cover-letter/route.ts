@@ -16,23 +16,26 @@ const CoverLetterRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limit: max 20 requests per minute
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "cl-client";
-    const rl = checkRateLimit(`cl:${clientIp}`, { max: 20, windowMs: 60 * 1000 });
+    let user: { id: string } | null = null;
+    // Authenticate user unconditionally when Supabase is configured
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      user = authData?.user || null;
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+      }
+    }
+
+    // Rate limit: max 20 requests per minute per user or IP
+    const clientIp = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "cl-client";
+    const rateLimitKey = user?.id ? `cl:user:${user.id}` : `cl:ip:${clientIp}`;
+    const rl = checkRateLimit(rateLimitKey, { max: 20, windowMs: 60 * 1000 });
     if (!rl.success) {
       return NextResponse.json(
         { error: "Too many Cover Letter generation requests. Please wait a moment." },
         { status: 429, headers: { "Retry-After": "60" } }
       );
-    }
-
-    // Authenticate user unconditionally when Supabase is configured
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
-      }
     }
 
     const body = await req.json();

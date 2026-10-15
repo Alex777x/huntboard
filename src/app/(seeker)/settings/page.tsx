@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { usePwa } from "@/components/pwa/PwaProvider";
 import { LATEST_CURATED_MODELS, AIProviderName, AIModelOption, isStrictTextLLM } from "@/lib/ai/types";
+import { createClient } from "@/lib/supabase/client";
 
 interface ProviderConfig {
   apiKey: string;
@@ -55,7 +56,7 @@ const PROVIDERS: {
     id: "openai",
     name: "OpenAI",
     icon: "🟢",
-    defaultModel: "gpt-5.6-sol",
+    defaultModel: "gpt-4o",
     placeholder: "sk-proj-...",
     docUrl: "https://platform.openai.com/api-keys",
   },
@@ -63,7 +64,7 @@ const PROVIDERS: {
     id: "gemini",
     name: "Google Gemini",
     icon: "🔵",
-    defaultModel: "gemini-3.7-flash",
+    defaultModel: "gemini-2.0-flash",
     placeholder: "AIzaSy...",
     docUrl: "https://aistudio.google.com/app/apikey",
   },
@@ -89,7 +90,7 @@ export default function SettingsPage() {
   const [configs, setConfigs] = React.useState<Record<AIProviderName, ProviderConfig>>({
     openai: {
       apiKey: "",
-      selectedModel: "gpt-5.6-sol",
+      selectedModel: "gpt-4o",
       customModel: "",
       availableModels: LATEST_CURATED_MODELS.openai,
       isFetchingModels: false,
@@ -99,7 +100,7 @@ export default function SettingsPage() {
     },
     gemini: {
       apiKey: "",
-      selectedModel: "gemini-3.7-flash",
+      selectedModel: "gemini-2.0-flash",
       customModel: "",
       availableModels: LATEST_CURATED_MODELS.gemini,
       isFetchingModels: false,
@@ -326,7 +327,7 @@ export default function SettingsPage() {
       });
 
       // Fetch latest models on test success
-      handleFetchLiveModels(p);
+      await handleFetchLiveModels(p);
       handleSaveAll();
     } catch (err: any) {
       updateProviderConfig(p, {
@@ -386,14 +387,54 @@ export default function SettingsPage() {
     localStorage.setItem("huntboard_ai_model", effectiveModel);
     localStorage.setItem("huntboard_recruiter_visibility", String(isVisibleToRecruiters));
 
+    try {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase
+            .from("profiles")
+            .update({
+              visible_to_recruiters: isVisibleToRecruiters,
+              ai_settings: {
+                provider: active,
+                model: effectiveModel,
+              },
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", user.id)
+            .then(() => {});
+        }
+      });
+    } catch (e) {
+      console.error("Error saving profile to Supabase:", e);
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
   // Telegram Integration Handlers
-  const handleSaveTelegram = () => {
+  const handleSaveTelegram = async () => {
     localStorage.setItem("huntboard_telegram_bot_token", telegramBotToken.trim());
     localStorage.setItem("huntboard_telegram_chat_id", telegramChatId.trim());
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({
+            telegram_bot_token: telegramBotToken.trim() || null,
+            telegram_chat_id: telegramChatId.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+      }
+    } catch (e) {
+      console.error("Error saving Telegram credentials to profile:", e);
+    }
+
     setTelegramSuccess("Telegram settings saved successfully!");
     setTimeout(() => setTelegramSuccess(null), 3000);
   };
@@ -624,12 +665,27 @@ export default function SettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          updateProviderConfig(p.id, {
-                            apiKey: "",
-                            testSuccessMessage: null,
-                            testError: null,
+                          setConfigs((prev) => {
+                            const next = {
+                              ...prev,
+                              [p.id]: {
+                                ...prev[p.id],
+                                apiKey: "",
+                                testSuccessMessage: null,
+                                testError: null,
+                              },
+                            };
+                            const keysMap: Record<string, string> = {
+                              openai: next.openai.apiKey.trim(),
+                              gemini: next.gemini.apiKey.trim(),
+                              anthropic: next.anthropic.apiKey.trim(),
+                            };
+                            localStorage.setItem("huntboard_ai_keys", JSON.stringify(keysMap));
+                            if (activeProvider === p.id) {
+                              localStorage.setItem("huntboard_api_key", "");
+                            }
+                            return next;
                           });
-                          handleSaveAll();
                         }}
                         className="text-xs border-slate-200 dark:border-slate-800 text-slate-500 hover:text-red-500"
                       >
@@ -716,7 +772,7 @@ export default function SettingsPage() {
                       <Input
                         value={config.customModel}
                         onChange={(e) => updateProviderConfig(p.id, { customModel: e.target.value })}
-                        placeholder="e.g. gpt-5.6-sol, gemini-3.7-flash, etc."
+                        placeholder="e.g. gpt-4o, gemini-2.0-flash, etc."
                         className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs font-mono h-8"
                       />
                     </div>
