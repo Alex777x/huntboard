@@ -5,7 +5,7 @@ describe("CV Data Zod Schema Validation", () => {
   it("should validate a complete valid CV object", () => {
     const validCV = {
       personal: {
-        fullName: "Anatoli Liaksandrou",
+        fullName: "Anatoli Aliaksandrou",
         title: "Senior Fullstack Engineer",
         email: "test@example.com",
         phone: "+48 123 456 789",

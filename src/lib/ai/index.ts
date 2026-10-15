@@ -73,7 +73,7 @@ Key highlights of my qualifications include:
 Thank you for considering my application. I would welcome the opportunity to discuss how my technical skills and passion align with the goals of ${companyName}.
 
 Sincerely,
-Anatoli Liaksandrou
+Anatoli Aliaksandrou
 Fullstack Engineer`;
 
     return { coverLetter };

@@ -34,7 +34,7 @@ interface TalentProfile {
 const talentDatabase: TalentProfile[] = [
   {
     id: "tal-1",
-    name: "Anatoli Liaksandrou",
+    name: "Anatoli Aliaksandrou",
     currentRole: "Senior Fullstack Engineer",
     desiredRole: "Staff Web Architect / Principal Engineer",
     location: "Warsaw, Poland",

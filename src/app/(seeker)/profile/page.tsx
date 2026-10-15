@@ -30,7 +30,7 @@ interface SkillItem {
 
 export default function ProfilePage() {
   const { t } = useI18n();
-  const [fullName, setFullName] = React.useState("Anatoli Liaksandrou");
+  const [fullName, setFullName] = React.useState("Anatoli Aliaksandrou");
   const [currentRole, setCurrentRole] = React.useState("Java Software Engineer");
   const [desiredRole, setDesiredRole] = React.useState("Senior Java / Microservices Engineer");
   const [location, setLocation] = React.useState("Poland, Bialystok");
