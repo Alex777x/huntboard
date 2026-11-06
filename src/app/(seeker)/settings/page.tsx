@@ -18,20 +18,14 @@ import {
   Zap,
   Radio,
   ExternalLink,
-  Send,
-  Puzzle,
-  Bell,
-  Download,
-  Smartphone,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/components/providers/I18nProvider";
-import { usePwa } from "@/components/pwa/PwaProvider";
 import { LATEST_CURATED_MODELS, AIProviderName, AIModelOption, isStrictTextLLM } from "@/lib/ai/types";
-import { createClient } from "@/lib/supabase/client";
+import { IntegrationsHubSection } from "@/components/settings/IntegrationsHubSection";
 
 interface ProviderConfig {
   apiKey: string;
@@ -127,44 +121,21 @@ export default function SettingsPage() {
   const [telegramSuccess, setTelegramSuccess] = React.useState<string | null>(null);
   const [telegramError, setTelegramError] = React.useState<string | null>(null);
 
-  // PWA & Push Notifications State
-  const { isInstalled, canInstall, installApp, pushPermission, requestPushPermission, sendTestPush } = usePwa();
-  const [isTestingPush, setIsTestingPush] = React.useState(false);
-  const [pushSuccess, setPushSuccess] = React.useState<string | null>(null);
-
-  const handleTestPushNotification = async () => {
-    setIsTestingPush(true);
-    setPushSuccess(null);
-    try {
-      await sendTestPush();
-      setPushSuccess(t.pwa.testPushSuccess);
-      setTimeout(() => setPushSuccess(null), 3500);
-    } finally {
-      setIsTestingPush(false);
-    }
-  };
-
-  // Load configuration and cached live models from localStorage with strict text-only sanitize
+  // Load non-sensitive preferences from localStorage & masked secret indicators from server
   React.useEffect(() => {
     try {
+      // Purge any legacy plaintext secrets from localStorage
+      localStorage.removeItem("huntboard_ai_keys");
+      localStorage.removeItem("huntboard_api_key");
+      localStorage.removeItem("huntboard_telegram_bot_token");
+
       const savedActive = (localStorage.getItem("huntboard_ai_provider") as AIProviderName) || "openai";
       setActiveProvider(savedActive);
 
       const savedVisibility = localStorage.getItem("huntboard_recruiter_visibility") === "true";
       setIsVisibleToRecruiters(savedVisibility);
 
-      setTelegramBotToken(localStorage.getItem("huntboard_telegram_bot_token") || "");
       setTelegramChatId(localStorage.getItem("huntboard_telegram_chat_id") || "");
-
-      // Load multi-keys
-      const rawKeys = localStorage.getItem("huntboard_ai_keys");
-      const multiKeys: Record<string, string> = rawKeys ? JSON.parse(rawKeys) : {};
-
-      // Fallback single key
-      const legacyKey = localStorage.getItem("huntboard_api_key") || "";
-      if (legacyKey && !multiKeys[savedActive]) {
-        multiKeys[savedActive] = legacyKey;
-      }
 
       // Load multi-models
       const rawModels = localStorage.getItem("huntboard_ai_selected_models");
@@ -180,26 +151,44 @@ export default function SettingsPage() {
       setConfigs((prev) => {
         const next = { ...prev };
         (Object.keys(next) as AIProviderName[]).forEach((p) => {
-          const key = multiKeys[p] || (p === savedActive ? legacyKey : "");
           const model =
             multiModels[p] ||
             (p === savedActive && legacyModel ? legacyModel : next[p].selectedModel);
           const rawCached = cachedModelsMap[p] || LATEST_CURATED_MODELS[p] || [];
 
-          // Sanitize cached list to remove any non-text models
           const sanitizedList = rawCached.filter((m) =>
             isStrictTextLLM(m.id, m.name, m.description)
           );
 
           next[p] = {
             ...next[p],
-            apiKey: key,
             selectedModel: model,
             availableModels: sanitizedList.length > 0 ? sanitizedList : LATEST_CURATED_MODELS[p],
           };
         });
         return next;
       });
+
+      // Fetch masked key status from server-side encrypted storage
+      fetch("/api/settings/secrets")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          if (data.maskedKeys) {
+            setConfigs((prev) => ({
+              openai: { ...prev.openai, apiKey: data.maskedKeys.openai || prev.openai.apiKey },
+              gemini: { ...prev.gemini, apiKey: data.maskedKeys.gemini || prev.gemini.apiKey },
+              anthropic: { ...prev.anthropic, apiKey: data.maskedKeys.anthropic || prev.anthropic.apiKey },
+            }));
+          }
+          if (data.maskedTelegramToken) {
+            setTelegramBotToken(data.maskedTelegramToken);
+          }
+          if (data.telegramChatId) {
+            setTelegramChatId(data.telegramChatId);
+          }
+        })
+        .catch(() => {});
     } catch (e) {
       console.error("Error loading settings:", e);
     }
@@ -377,37 +366,25 @@ export default function SettingsPage() {
       anthropic: configs.anthropic.availableModels,
     };
 
-    localStorage.setItem("huntboard_ai_keys", JSON.stringify(keysMap));
+    // Persist only non-sensitive model preferences in localStorage (never raw API keys)
+    localStorage.removeItem("huntboard_ai_keys");
+    localStorage.removeItem("huntboard_api_key");
     localStorage.setItem("huntboard_ai_selected_models", JSON.stringify(modelsMap));
     localStorage.setItem("huntboard_ai_cached_models", JSON.stringify(cachedModelsMap));
-
-    // Active Engine Single Keys for fast global access across all pages
     localStorage.setItem("huntboard_ai_provider", active);
-    localStorage.setItem("huntboard_api_key", activeConfig.apiKey.trim());
     localStorage.setItem("huntboard_ai_model", effectiveModel);
     localStorage.setItem("huntboard_recruiter_visibility", String(isVisibleToRecruiters));
 
-    try {
-      const supabase = createClient();
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
-          supabase
-            .from("profiles")
-            .update({
-              visible_to_recruiters: isVisibleToRecruiters,
-              ai_settings: {
-                provider: active,
-                model: effectiveModel,
-              },
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", user.id)
-            .then(() => {});
-        }
-      });
-    } catch (e) {
-      console.error("Error saving profile to Supabase:", e);
-    }
+    fetch("/api/settings/secrets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        keys: keysMap,
+        provider: active,
+        model: effectiveModel,
+        visibleToRecruiters: isVisibleToRecruiters,
+      }),
+    }).catch((e) => console.error("Error saving encrypted keys:", e));
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -415,24 +392,20 @@ export default function SettingsPage() {
 
   // Telegram Integration Handlers
   const handleSaveTelegram = async () => {
-    localStorage.setItem("huntboard_telegram_bot_token", telegramBotToken.trim());
+    localStorage.removeItem("huntboard_telegram_bot_token");
     localStorage.setItem("huntboard_telegram_chat_id", telegramChatId.trim());
 
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("profiles")
-          .update({
-            telegram_bot_token: telegramBotToken.trim() || null,
-            telegram_chat_id: telegramChatId.trim() || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", user.id);
-      }
+      await fetch("/api/settings/secrets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramBotToken: telegramBotToken.trim(),
+          telegramChatId: telegramChatId.trim(),
+        }),
+      });
     } catch (e) {
-      console.error("Error saving Telegram credentials to profile:", e);
+      console.error("Error saving encrypted Telegram credentials:", e);
     }
 
     setTelegramSuccess("Telegram settings saved successfully!");
@@ -665,27 +638,22 @@ export default function SettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setConfigs((prev) => {
-                            const next = {
-                              ...prev,
-                              [p.id]: {
-                                ...prev[p.id],
-                                apiKey: "",
-                                testSuccessMessage: null,
-                                testError: null,
-                              },
-                            };
-                            const keysMap: Record<string, string> = {
-                              openai: next.openai.apiKey.trim(),
-                              gemini: next.gemini.apiKey.trim(),
-                              anthropic: next.anthropic.apiKey.trim(),
-                            };
-                            localStorage.setItem("huntboard_ai_keys", JSON.stringify(keysMap));
-                            if (activeProvider === p.id) {
-                              localStorage.setItem("huntboard_api_key", "");
-                            }
-                            return next;
-                          });
+                          setConfigs((prev) => ({
+                            ...prev,
+                            [p.id]: {
+                              ...prev[p.id],
+                              apiKey: "",
+                              testSuccessMessage: null,
+                              testError: null,
+                            },
+                          }));
+                          localStorage.removeItem("huntboard_ai_keys");
+                          localStorage.removeItem("huntboard_api_key");
+                          fetch("/api/settings/secrets", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ deleteProvider: p.id }),
+                          }).catch(() => {});
                         }}
                         className="text-xs border-slate-200 dark:border-slate-800 text-slate-500 hover:text-red-500"
                       >
@@ -834,232 +802,17 @@ export default function SettingsPage() {
       </div>
 
       {/* 3. Phase 4: Integrations & Automation Hub */}
-      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Puzzle className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            <span>{t.integrations.title}</span>
-            <Badge variant="purple" className="text-[10px]">Phase 4</Badge>
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {t.integrations.subtitle}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card 1: Telegram Notifications */}
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-5 space-y-4 shadow-xs">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                    <Send className="h-4 w-4" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {t.integrations.telegramTitle}
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {t.integrations.telegramDesc}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-1">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                  {t.integrations.botTokenLabel}
-                </label>
-                <Input
-                  type="password"
-                  value={telegramBotToken}
-                  onChange={(e) => setTelegramBotToken(e.target.value)}
-                  placeholder={t.integrations.botTokenPlaceholder}
-                  className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                  {t.integrations.chatIdLabel}
-                </label>
-                <Input
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder={t.integrations.chatIdPlaceholder}
-                  className="bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs font-mono"
-                />
-              </div>
-
-              {telegramSuccess && (
-                <div className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 p-2.5 rounded-lg flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span>{telegramSuccess}</span>
-                </div>
-              )}
-
-              {telegramError && (
-                <div className="text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-500/30 p-2.5 rounded-lg flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-                  <span>{telegramError}</span>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isTestingTelegram || !telegramBotToken || !telegramChatId}
-                  onClick={handleTestTelegram}
-                  className="text-xs gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                >
-                  {isTestingTelegram ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Send className="h-3 w-3 text-sky-500" />
-                  )}
-                  <span>{t.integrations.testTelegramBtn}</span>
-                </Button>
-
-                <Button
-                  size="sm"
-                  onClick={handleSaveTelegram}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5 shadow-xs"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  <span>{t.common.saveChanges}</span>
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 2: Chrome Extension (LinkedIn 1-Click Saver) */}
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-5 space-y-4 shadow-xs">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold">
-                    🧩
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {t.integrations.extensionTitle}
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {t.integrations.extensionDesc}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 space-y-2 text-xs text-slate-700 dark:text-slate-300">
-              <div className="font-semibold text-slate-900 dark:text-white">Quick 3-Step Setup:</div>
-              <div className="space-y-1 text-[11px] leading-relaxed">
-                <div>{t.integrations.extensionInstallStep1}</div>
-                <div>{t.integrations.extensionInstallStep2}</div>
-                <div>{t.integrations.extensionInstallStep3}</div>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">Manifest V3 Unpacked Ready</span>
-              <Badge variant="success" className="text-[10px]">
-                Ready in repo /extension
-              </Badge>
-            </div>
-          </Card>
-
-          {/* Card 3: Progressive Web App & Web Push Notifications */}
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-5 space-y-4 shadow-xs md:col-span-2">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold">
-                    <Smartphone className="h-4 w-4" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {t.pwa.pushNotifications}
-                  </h3>
-                  {isInstalled ? (
-                    <Badge variant="success" className="text-[10px]">
-                      PWA Standalone
-                    </Badge>
-                  ) : canInstall ? (
-                    <Badge variant="outline" className="text-[10px] text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">
-                      Installable
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {t.pwa.pushDesc}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {canInstall && !isInstalled && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={installApp}
-                    className="text-xs h-8 gap-1.5 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>{t.pwa.installButton}</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-              <div className="space-y-1">
-                <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Bell className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Browser Push Alerts Status</span>
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {pushPermission === "granted"
-                    ? t.pwa.pushEnabled
-                    : "Push notifications are currently disabled in your browser."}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {pushPermission === "granted" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isTestingPush}
-                    onClick={handleTestPushNotification}
-                    className="text-xs h-8 gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                  >
-                    {isTestingPush ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Bell className="h-3.5 w-3.5 text-indigo-500" />
-                    )}
-                    <span>{t.pwa.testPush}</span>
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={requestPushPermission}
-                    className="text-xs h-8 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold gap-1.5 shadow-xs"
-                  >
-                    <Bell className="h-3.5 w-3.5" />
-                    <span>{t.pwa.enablePush}</span>
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {pushSuccess && (
-              <div className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 p-2.5 rounded-lg flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span>{pushSuccess}</span>
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
+      <IntegrationsHubSection
+        telegramBotToken={telegramBotToken}
+        setTelegramBotToken={setTelegramBotToken}
+        telegramChatId={telegramChatId}
+        setTelegramChatId={setTelegramChatId}
+        isTestingTelegram={isTestingTelegram}
+        telegramSuccess={telegramSuccess}
+        telegramError={telegramError}
+        onTestTelegram={handleTestTelegram}
+        onSaveTelegram={handleSaveTelegram}
+      />
     </div>
   );
 }

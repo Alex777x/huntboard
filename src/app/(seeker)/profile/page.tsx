@@ -187,7 +187,15 @@ export default function ProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-5 pb-6 border-b border-slate-200 dark:border-slate-800">
           <Avatar className="h-16 w-16 border-2 border-indigo-500/40">
             <AvatarFallback className="bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-lg">
-              AL
+              {fullName
+                ? fullName
+                    .trim()
+                    .split(/\s+/)
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()
+                : "U"}
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1 flex-1">

@@ -73,28 +73,17 @@ export default function JobApplicantsPage() {
 
       setJobTitle(jobData.title);
 
-      const { data: appsData } = await supabase
-        .from("applications")
-        .select(
-          `
-          *,
-          profiles (
-            full_name,
-            email,
-            current_role,
-            skills
-          )
-        `,
-        )
-        .eq("recruiter_job_id", params.id)
-        .limit(100);
+      const { data: rpcApps, error: rpcErr } = await supabase.rpc(
+        "get_job_applicants_with_profiles",
+        { p_job_id: params.id }
+      );
 
-      if (appsData) {
-        const formatted: JobApplicant[] = appsData.map((app: any) => ({
+      if (!rpcErr && Array.isArray(rpcApps)) {
+        const formatted: JobApplicant[] = rpcApps.map((app: any) => ({
           id: app.id,
-          name: app.profiles?.full_name || "Unknown",
-          email: app.profiles?.email || "candidate@huntboard.app",
-          currentRole: app.profiles?.current_role || "Candidate",
+          name: app.full_name || "Unknown",
+          email: app.email || "candidate@huntboard.app",
+          currentRole: app.current_role || "Candidate",
           matchScore: app.ats_score?.score || 0,
           stage: app.status as ApplicantStage,
           appliedDate: new Date(app.created_at).toLocaleDateString("en-US", {
@@ -104,12 +93,39 @@ export default function JobApplicantsPage() {
           }),
           coverLetterSnippet:
             app.cover_letter || app.notes || "No cover letter provided.",
-          recruiterNotes: app.notes || "",
-          skills: (app.profiles?.skills || []).map((s: any) =>
-            typeof s === "string" ? s : s.name,
+          recruiterNotes: app.recruiter_notes || "",
+          skills: (Array.isArray(app.skills) ? app.skills : []).map((s: any) =>
+            typeof s === "string" ? s : s.name
           ),
         }));
         setApplicants(formatted);
+      } else {
+        const { data: appsData } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("recruiter_job_id", params.id)
+          .limit(100);
+
+        if (appsData) {
+          const formatted: JobApplicant[] = appsData.map((app: any) => ({
+            id: app.id,
+            name: "Candidate",
+            email: "candidate@huntboard.app",
+            currentRole: app.job_title || "Candidate",
+            matchScore: app.ats_score?.score || 0,
+            stage: app.status as ApplicantStage,
+            appliedDate: new Date(app.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            coverLetterSnippet:
+              app.cover_letter || app.notes || "No cover letter provided.",
+            recruiterNotes: app.recruiter_notes || "",
+            skills: [],
+          }));
+          setApplicants(formatted);
+        }
       }
       setLoading(false);
     }
@@ -426,7 +442,7 @@ export default function JobApplicantsPage() {
                     const newNotes = selectedApplicant.recruiterNotes;
                     const { error } = await supabase
                       .from("applications")
-                      .update({ notes: newNotes })
+                      .update({ recruiter_notes: newNotes })
                       .eq("id", applicantId);
                     if (error) {
                       console.error("Failed to save applicant notes:", error);

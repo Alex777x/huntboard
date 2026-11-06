@@ -5,6 +5,7 @@ import {
   formatRecruiterInviteTelegramMessage,
 } from "@/lib/notifications/telegram";
 import { checkRateLimit } from "@/lib/security/rate-limit";
+import { decryptApiKey } from "@/lib/ai/crypto";
 
 export async function POST(req: Request) {
   try {
@@ -34,7 +35,28 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, botToken, chatId, inviteData } = body;
+    const { action, botToken: rawBotToken, chatId: rawChatId, inviteData } = body;
+
+    let botToken =
+      typeof rawBotToken === "string" && !rawBotToken.includes("••••")
+        ? rawBotToken.trim()
+        : "";
+    let chatId = typeof rawChatId === "string" ? rawChatId.trim() : "";
+
+    if ((!botToken || !chatId) && user && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("telegram_bot_token, telegram_chat_id")
+        .eq("id", user.id)
+        .single();
+      if (!botToken && profile?.telegram_bot_token) {
+        botToken = decryptApiKey(profile.telegram_bot_token) || profile.telegram_bot_token;
+      }
+      if (!chatId && profile?.telegram_chat_id) {
+        chatId = profile.telegram_chat_id;
+      }
+    }
 
     if (!botToken || !chatId) {
       return NextResponse.json(

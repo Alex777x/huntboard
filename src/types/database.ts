@@ -40,6 +40,7 @@ export interface Profile {
     provider?: "openai" | "gemini" | "anthropic";
     model?: string;
     encrypted_key?: string;
+    encrypted_keys?: Record<string, string>;
   };
   locale: "en" | "ru" | "pl";
   theme: "dark" | "light" | "system";
@@ -128,6 +129,7 @@ export interface Application {
   salary_currency: string;
   priority: number;
   notes: string | null;
+  recruiter_notes?: string | null;
   cover_letter: string | null;
   applied_at: string | null;
   next_interview_at: string | null;
@@ -231,6 +233,7 @@ export interface RecruiterVerification {
   company_name: string;
   work_email: string;
   code: string;
+  attempts?: number;
   expires_at: string;
   verified_at?: string | null;
   created_at: string;

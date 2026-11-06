@@ -69,19 +69,26 @@ export default function AdminBalancePage() {
       )
     );
 
-    const { error } = await supabase.from("ai_token_balance").upsert(
+    const { data: newBalance, error: rpcError } = await supabase.rpc(
+      "increment_token_balance",
       {
-        profile_id: selectedUserId,
-        tokens_remaining: currentTokens + count,
-        last_topped_up_at: new Date().toISOString(),
-      },
-      { onConflict: "profile_id" }
+        p_profile_id: selectedUserId,
+        p_amount: count,
+      }
     );
 
-    if (error) {
-      console.error("Failed to top up tokens:", error);
+    if (rpcError) {
+      console.error("Failed to top up tokens via RPC:", rpcError);
       setUsers(prevUsers);
       return;
+    }
+
+    if (typeof newBalance === "number") {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === selectedUserId ? { ...u, tokens: newBalance } : u
+        )
+      );
     }
 
     setSuccessMessage(`Successfully granted +${count} tokens to ${userObj.email}!`);

@@ -43,6 +43,28 @@ export default function SeekerInvitesPage() {
         return;
       }
       
+      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_seeker_invites");
+
+      if (rpcData && !rpcErr && Array.isArray(rpcData)) {
+        setInvites(
+          rpcData.map((d: any) => ({
+            id: d.id,
+            recruiterJobId: d.recruiter_job_id,
+            recruiterName: d.recruiter_name || "Recruiter",
+            companyName: d.company_name || "Company",
+            isVerifiedCompany: Boolean(d.is_verified_company),
+            jobTitle: d.job_title || "Open Role",
+            location: d.location || "Remote",
+            salaryMin: d.salary_min || 0,
+            salaryMax: d.salary_max || 0,
+            message: d.message || "",
+            date: new Date(d.created_at).toLocaleDateString(),
+            status: d.status,
+          }))
+        );
+        return;
+      }
+
       const { data, error } = await supabase
         .from("invites")
         .select(`

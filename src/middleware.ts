@@ -16,6 +16,16 @@ export function isPublicRoute(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
+export function isRoleAuthorizedForPath(pathname: string, role?: string | null): boolean {
+  if (pathname.startsWith("/admin")) {
+    return role === "admin";
+  }
+  if (pathname.startsWith("/recruiter")) {
+    return role === "recruiter" || role === "admin";
+  }
+  return true;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -91,41 +101,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Role-based route protection
-  const userRole = (user.app_metadata?.role as string) || (user.user_metadata?.role as string);
-
-  if (pathname.startsWith("/admin")) {
-    let role = userRole;
+  // Role-based route protection: ONLY trust server-controlled app_metadata or DB profile (never client-writable user_metadata)
+  if (pathname.startsWith("/admin") || pathname.startsWith("/recruiter")) {
+    let role = typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null;
     if (!role) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
-      role = profile?.role;
+      role = profile?.role ?? null;
     }
 
-    if (role !== "admin") {
-      const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
-      response.cookies.getAll().forEach((cookie) => {
-        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
-      });
-      return redirectResponse;
-    }
-  }
-
-  if (pathname.startsWith("/recruiter")) {
-    let role = userRole;
-    if (!role) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-      role = profile?.role;
-    }
-
-    if (role !== "recruiter" && role !== "admin") {
+    if (!isRoleAuthorizedForPath(pathname, role)) {
       const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
       response.cookies.getAll().forEach((cookie) => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);

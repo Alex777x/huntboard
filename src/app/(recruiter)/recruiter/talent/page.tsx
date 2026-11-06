@@ -46,10 +46,8 @@ export default function TalentPoolPage() {
       try {
         const supabase = createClient();
         const { data, error } = await supabase
-          .from("profiles")
+          .from("recruiter_visible_profiles")
           .select("id, full_name, current_role, desired_role, location, open_to_relocation, visible_to_recruiters, skills")
-          .eq("visible_to_recruiters", true)
-          .eq("role", "seeker")
           .limit(100);
 
         if (!error && data && data.length > 0) {

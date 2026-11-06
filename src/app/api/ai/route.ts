@@ -3,6 +3,7 @@ import { CVData } from "@/types/cv";
 import { LATEST_CURATED_MODELS, AIProviderName, isStrictTextLLM } from "@/lib/ai/types";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/security/rate-limit";
+import { decryptApiKey } from "@/lib/ai/crypto";
 
 function parseLLMJson<T>(raw: string): T | null {
   if (!raw) return null;
@@ -75,9 +76,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Job title exceeds allowed length (max 300 chars)." }, { status: 400 });
     }
 
-    // Only fall back to server OPENAI_API_KEY when the requested provider is 'openai'
+    // Resolve API key: prefer explicit unmasked client key, then server-stored encrypted user key, then server env OPENAI_API_KEY
+    let resolvedKey =
+      typeof clientApiKey === "string" && !clientApiKey.includes("••••")
+        ? clientApiKey.trim()
+        : "";
+
+    if (!resolvedKey && user && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("ai_settings")
+        .eq("id", user.id)
+        .single();
+      const encryptedKeys =
+        (profile?.ai_settings as { encrypted_keys?: Record<string, string> } | null)
+          ?.encrypted_keys || {};
+      const cipherText = encryptedKeys[provider as string];
+      if (cipherText) {
+        resolvedKey = decryptApiKey(cipherText);
+      }
+    }
+
     const apiKey =
-      (clientApiKey || "").trim() ||
+      resolvedKey ||
       (provider === "openai" ? (process.env.OPENAI_API_KEY || "").trim() : "");
     const selectedModel =
       model === "custom" || !model

@@ -42,7 +42,7 @@ export function CoverLetterDialog({
   const getSavedAISettings = () => {
     if (typeof window === "undefined") return { apiKey: "", provider: "openai", model: "gpt-4o" };
     return {
-      apiKey: localStorage.getItem("huntboard_api_key") || "",
+      apiKey: "",
       provider: localStorage.getItem("huntboard_ai_provider") || "openai",
       model: localStorage.getItem("huntboard_ai_model") || "gpt-4o",
     };

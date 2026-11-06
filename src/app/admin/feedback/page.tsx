@@ -71,15 +71,19 @@ export default function AdminFeedbackPage() {
     }
   };
 
-  const updateNotes = async (id: string, notes: string) => {
-    const prevTickets = tickets;
-    setTickets(
-      tickets.map((tk) => (tk.id === id ? { ...tk, adminNotes: notes } : tk))
+  const handleNoteChange = (id: string, notes: string) => {
+    setTickets((prev) =>
+      prev.map((tk) => (tk.id === id ? { ...tk, adminNotes: notes } : tk))
     );
-    const { error } = await supabase.from("feedback_tickets").update({ admin_notes: notes }).eq("id", id);
+  };
+
+  const persistNotes = async (id: string, notes: string) => {
+    const { error } = await supabase
+      .from("feedback_tickets")
+      .update({ admin_notes: notes })
+      .eq("id", id);
     if (error) {
       console.error("Failed to update notes:", error);
-      setTickets(prevTickets);
     }
   };
 
@@ -205,7 +209,8 @@ export default function AdminFeedbackPage() {
               </label>
               <Input
                 value={ticket.adminNotes || ""}
-                onChange={(e) => updateNotes(ticket.id, e.target.value)}
+                onChange={(e) => handleNoteChange(ticket.id, e.target.value)}
+                onBlur={(e) => persistNotes(ticket.id, e.target.value)}
                 placeholder="e.g. Scheduled for next release or under active investigation..."
                 className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs"
               />

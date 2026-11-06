@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, isCorporateEmail } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,51 +13,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { companyName, workEmail } = body;
-
-    if (!companyName || !workEmail || !workEmail.includes("@")) {
+    const rl = checkRateLimit(`verify-send:${user.id}`, {
+      max: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rl.success) {
       return NextResponse.json(
-        { error: "Valid company name and corporate email required" },
+        { error: "Too many verification code requests. Please wait 15 minutes." },
+        { status: 429, headers: { "Retry-After": "900" } }
+      );
+    }
+
+    const body = await req.json();
+    const companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
+    const workEmail = typeof body.workEmail === "string" ? body.workEmail.trim() : "";
+
+    if (!companyName || companyName.length < 2 || !isCorporateEmail(workEmail)) {
+      return NextResponse.json(
+        { error: "Please provide a valid company name and corporate work email (no free personal email domains)." },
         { status: 400 }
       );
     }
 
-    // Call stored procedure or direct insert
     const { data, error } = await supabase.rpc("request_recruiter_verification", {
-      p_company_name: companyName.trim(),
-      p_work_email: workEmail.trim(),
+      p_company_name: companyName,
+      p_work_email: workEmail,
     });
 
-    if (error) {
-      // Fallback: direct insert if RPC not executed in local test DB
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-      const { error: insertErr } = await supabase.from("recruiter_verifications").insert({
-        profile_id: user.id,
-        company_name: companyName.trim(),
-        work_email: workEmail.trim(),
-        code,
-        expires_at: expiresAt,
-      });
-
-      if (insertErr) {
-        return NextResponse.json({ error: insertErr.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: "Verification code sent to corporate email", devCode: process.env.NODE_ENV !== "production" ? code : undefined });
+    if (error || !data?.success) {
+      return NextResponse.json(
+        { error: data?.error || error?.message || "Failed to generate verification code" },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       success: true,
       message: "Verification code sent to corporate email",
-      devCode: process.env.NODE_ENV !== "production" ? data?.code : undefined,
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

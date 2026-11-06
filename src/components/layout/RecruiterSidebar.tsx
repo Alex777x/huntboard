@@ -100,8 +100,8 @@ export function RecruiterSidebar({ className }: { className?: string }) {
       title: t.recruiter.verifyTitle,
       href: "/recruiter/verify",
       icon: ShieldCheck,
-      badge: t.common.verified,
-      badgeVariant: "emerald",
+      badge: isVerified ? t.common.verified : t.recruiter.pendingStatus,
+      badgeVariant: isVerified ? "emerald" : "secondary",
     },
   ];
 

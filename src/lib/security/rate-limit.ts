@@ -92,3 +92,29 @@ export function checkRateLimit(
 export function resetRateLimitStore(): void {
   store.clear();
 }
+
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "outlook.com",
+  "hotmail.com",
+  "icloud.com",
+  "aol.com",
+  "proton.me",
+  "protonmail.com",
+  "wp.pl",
+  "onet.pl",
+  "interia.pl",
+  "o2.pl",
+]);
+
+/**
+ * Validates that an email address belongs to a corporate domain rather than a free personal provider.
+ */
+export function isCorporateEmail(email: string): boolean {
+  const parts = email.trim().toLowerCase().split("@");
+  if (parts.length !== 2 || !parts[0] || !parts[1].includes(".")) return false;
+  return !PUBLIC_EMAIL_DOMAINS.has(parts[1]);
+}
+

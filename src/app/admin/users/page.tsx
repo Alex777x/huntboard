@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { localeIncludes } from "@/lib/utils";
-import * as fmt from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 interface UserRecord {

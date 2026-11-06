@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,69 +13,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { code } = body;
-
-    if (!code || typeof code !== "string" || code.trim().length === 0) {
-      return NextResponse.json({ error: "Verification code is required" }, { status: 400 });
+    const rl = checkRateLimit(`verify-confirm:${user.id}`, {
+      max: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many verification attempts. Please wait 15 minutes." },
+        { status: 429, headers: { "Retry-After": "900" } }
+      );
     }
 
-    // Call stored procedure
+    const body = await req.json();
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+
+    if (!/^\d{6}$/.test(code)) {
+      return NextResponse.json(
+        { error: "A valid 6-digit verification code is required" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase.rpc("confirm_recruiter_verification", {
-      p_code: code.trim(),
+      p_code: code,
     });
 
-    if (!error && data?.success) {
-      return NextResponse.json({ success: true, companyName: data.company_name });
+    if (error || !data?.success) {
+      return NextResponse.json(
+        { error: data?.error || error?.message || "Invalid or expired verification code" },
+        { status: 400 }
+      );
     }
 
-    if (error) {
-      // Fallback query if RPC not yet run in active environment
-      const { data: verif, error: selectErr } = await supabase
-        .from("recruiter_verifications")
-        .select("*")
-        .eq("profile_id", user.id)
-        .eq("code", code.trim())
-        .is("verified_at", null)
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (selectErr || !verif) {
-        return NextResponse.json(
-          { error: "Invalid or expired verification code" },
-          { status: 400 }
-        );
-      }
-
-      await supabase
-        .from("recruiter_verifications")
-        .update({ verified_at: new Date().toISOString() })
-        .eq("id", verif.id);
-
-      await supabase
-        .from("profiles")
-        .update({
-          is_verified_recruiter: true,
-          verified: true,
-          company_name: verif.company_name,
-          company_email: verif.work_email,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      return NextResponse.json({ success: true, companyName: verif.company_name });
-    }
-
-    return NextResponse.json(
-      { error: data?.error || "Invalid verification code" },
-      { status: 400 }
-    );
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      companyName: data.company_name,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

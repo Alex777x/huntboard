@@ -190,7 +190,7 @@ export function CVManager() {
   const handleRunATS = async () => {
     setIsAnalyzing(true);
     try {
-      const apiKey = localStorage.getItem("huntboard_api_key") || "";
+      const apiKey = "";
       const provider = localStorage.getItem("huntboard_ai_provider") || "openai";
       const model = localStorage.getItem("huntboard_ai_model") || "gpt-4o";
 

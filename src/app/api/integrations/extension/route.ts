@@ -103,7 +103,7 @@ export async function POST(req: Request) {
               ? "indeed"
               : parsedUrl.hostname.includes("glassdoor.com")
               ? "glassdoor"
-              : "company_website",
+              : "company_site",
             work_format: "remote",
             job_location: "Remote",
             salary_min: null,
